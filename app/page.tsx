@@ -74,7 +74,7 @@ rumah sakit.
           <div className="bg-[#252525] border-b md:border-b-0 md:border-r border-[#FBC02D]/20 relative group overflow-hidden min-h-[300px]">
             <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-mono text-xs">
                <Image
-               src="/img/IMG_8565.JPG" // Path dari folder public
+               src="/img/IMG_8565.jpg" // Path dari folder public
                alt="Titik Nol Coffee Reserve - Signature Coffee"
                fill // Agar gambar mengisi penuh kotak pembungkusnya
                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw" // Optimasi loading
@@ -88,7 +88,7 @@ rumah sakit.
           <div className="bg-[#303030] border-b md:border-b-0 md:border-r border-[#FBC02D]/20 relative group overflow-hidden min-h-[300px]">
              {/* NEXT/IMAGE COMPONENT DI SINI */}
              <Image
-               src="/img/IMG_8587.JPG" // Path dari folder public
+               src="/img/IMG_8587.jpg" // Path dari folder public
                alt="Titik Nol Coffee Reserve - Signature Coffee"
                fill // Agar gambar mengisi penuh kotak pembungkusnya
                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw" // Optimasi loading
