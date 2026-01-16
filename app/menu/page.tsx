@@ -224,7 +224,7 @@ export default function MenuPage() {
       message += `• ${item.name} (x${item.qty}) - Rp${(item.price * item.qty).toLocaleString('id-ID')}%0A`;
     });
     message += `--------------------------------%0A*TOTAL: Rp ${totalAmount.toLocaleString('id-ID')}*%0A%0Amohon diproses.`;
-    window.open(`https://wa.me/6281234567890?text=${message}`, '_blank');
+    window.open(`https://wa.me/625349324001?text=${message}`, '_blank');
   };
 
   return (
