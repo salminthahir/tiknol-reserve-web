@@ -243,20 +243,7 @@ function MenuContent() {
 
   const totalAmount = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
   const totalItems = cart.reduce((acc, item) => acc + item.qty, 0);
-<<<<<<< HEAD
   const isFormValid = cart.length > 0 && customerName.length > 0 && whatsapp.length > 0;
-=======
-
-  const handleCheckout = () => {
-    if (cart.length === 0) return;
-    let message = `*ORDER REQUEST - TITIK NOL*%0A--------------------------------%0A`;
-    cart.forEach(item => {
-      message += `• ${item.name} (x${item.qty}) - Rp${(item.price * item.qty).toLocaleString('id-ID')}%0A`;
-    });
-    message += `--------------------------------%0A*TOTAL: Rp ${totalAmount.toLocaleString('id-ID')}*%0A%0Amohon diproses.`;
-    window.open(`https://wa.me/6288999324001?text=${message}`, '_blank');
-  };
->>>>>>> 18cab77da59d21417e6a84643f8395678e937b34
 
   return (
     <div className="min-h-screen bg-[#1A1A1A] text-[#F5F5F5] font-sans pb-32">
@@ -386,7 +373,6 @@ function MenuContent() {
     </div>
   );
 }
-<<<<<<< HEAD
 
 export default function MenuPage() {
   return (
@@ -395,5 +381,3 @@ export default function MenuPage() {
     </Suspense>
   );
 }
-=======
->>>>>>> 18cab77da59d21417e6a84643f8395678e937b34
