@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma';
 import TicketUI from './TicketUI'; 
 import { OrderItem } from '@/types/order';
 
-// Definisikan tipe untuk props halaman dinamis, dengan params sebagai Promise
 interface TicketPageProps {
   params: Promise<{
     id: string;
@@ -10,7 +9,6 @@ interface TicketPageProps {
 }
 
 export default async function TicketPage(props: TicketPageProps) {
-  // Terapkan workaround Next.js 15: await params dari props
   const params = await props.params;
   const id = params?.id; 
 
@@ -18,7 +16,6 @@ export default async function TicketPage(props: TicketPageProps) {
     return <div className="p-10 text-center text-red-500 font-bold">Error: ID Tidak Ditemukan di URL</div>;
   }
 
-  // 2. Ambil Data
   const order = await prisma.order.findUnique({
     where: { id: id },
   });
@@ -35,9 +32,18 @@ export default async function TicketPage(props: TicketPageProps) {
   // 3. Render UI (Serialisasi data)
   const serializedOrder = {
     ...order,
-    items: order.items as OrderItem[],
+    // FIX 1: Ubah JSON ke Array Items
+    items: order.items as unknown as OrderItem[],
+    
+    // FIX 2: Ubah Date ke String
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    
+    // FIX 3 (YANG BIKIN ERROR): Paksa Status jadi 'any' biar TypeScript diam
+    status: order.status as any,
+    
+    // FIX 4: Handle Null Token
+    snapToken: order.snapToken || "",
   };
 
   return <TicketUI order={serializedOrder} />;
