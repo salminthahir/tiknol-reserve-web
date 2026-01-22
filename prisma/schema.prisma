@@ -1,0 +1,34 @@
+// 1. Konfigurasi Koneksi (Sudah Benar Sesuai .env Kamu)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 2. Model Order (CUMA BOLEH ADA SATU)
+model Order {
+  id           String   @id @default(cuid()) // ID Unik (misal: cmkp...)
+  
+  // Data Customer
+  customerName String
+  whatsapp     String
+  
+  // Data Transaksi
+  totalAmount  Int
+  items        Json     // Menyimpan detail menu (nama, qty, harga)
+  
+  // Status Pembayaran & Dapur
+  // Values: "PENDING", "PAID", "PREPARING", "READY", "COMPLETED", "FAILED"
+  status       String   @default("PENDING") 
+  
+  // Token Midtrans (Disimpan biar user bisa resume payment)
+  snapToken    String?  
+  
+  // Waktu
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
