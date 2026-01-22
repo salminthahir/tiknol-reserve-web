@@ -1,15 +1,17 @@
 import { prisma } from '@/lib/prisma';
 import TicketUI from './TicketUI'; 
-import { OrderItem } from '@/types/order'; 
+import { OrderItem } from '@/types/order';
 
-// Definisikan tipe untuk props halaman dinamis
+// Definisikan tipe untuk props halaman dinamis, dengan params sebagai Promise
 interface TicketPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default async function TicketPage({ params }: TicketPageProps) {
+export default async function TicketPage(props: TicketPageProps) {
+  // Terapkan workaround Next.js 15: await params dari props
+  const params = await props.params;
   const id = params?.id; 
 
   if (!id) {
@@ -30,12 +32,10 @@ export default async function TicketPage({ params }: TicketPageProps) {
     );
   }
 
-  // 3. Render UI (Pastikan order sesuai tipe yang diharapkan oleh TicketUI)
-  // Prisma terkadang menghasilkan tipe Date, sementara komponen butuh string.
-  // Kita konversi di sini untuk memastikan konsistensi.
+  // 3. Render UI (Serialisasi data)
   const serializedOrder = {
     ...order,
-    items: order.items as OrderItem[], // Pastikan tipe items benar
+    items: order.items as OrderItem[],
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   };
