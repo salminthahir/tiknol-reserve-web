@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
 import { Order, OrderItem } from '@/types/order'; // Import tipe data Order
 
 // 1. Setup Supabase Client (Client Side)
@@ -14,7 +13,6 @@ const supabase = createClient(
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]); // Gunakan tipe data Order[]
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   // Pindahkan deklarasi fungsi ke atas
   const fetchOrders = async () => {

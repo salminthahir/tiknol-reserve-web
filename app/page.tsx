@@ -100,7 +100,7 @@ rumah sakit.
 
           {/* BOX 4: QUOTE */}
           <div className="p-12 flex items-center justify-center bg-[#FBC02D] text-black min-h-[300px]">
-             <h4 className="text-2xl font-bold text-center leading-tight">"COFFEE IS NOT A BEVERAGE. TO THE LAST DROP POINT"</h4>
+             <h4 className="text-2xl font-bold text-center leading-tight">&quot;COFFEE IS NOT A BEVERAGE. TO THE LAST DROP POINT&quot;</h4>
           </div>
         </div>
       </section>

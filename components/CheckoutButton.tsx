@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { OrderItem } from '@/types/order'; // Import tipe data OrderItem
 
 // Tipe data untuk props
 interface CheckoutProps {
-  items: any[];
+  items: OrderItem[];
   total: number;
   customerName: string;
   whatsapp: string;
@@ -53,24 +54,20 @@ export default function CheckoutButton({ items, total, customerName, whatsapp, d
 
       // 2. Munculkan Popup Midtrans
       if (data.token) {
-        // @ts-ignore
+        // @ts-expect-error - window.snap di-inject oleh script Midtrans secara global
         window.snap.pay(data.token, {
-          // Sukses -> Redirect ke Ticket Page
-          onSuccess: function(result: any) {
+          onSuccess: function(result: { order_id: string }) {
             console.log("Payment Success:", result);
             router.push(`/ticket/${result.order_id}`); 
           },
-          // Pending -> Redirect ke Ticket Page (Status Kuning)
-          onPending: function(result: any) {
+          onPending: function(result: { order_id: string }) {
             console.log("Payment Pending:", result);
             router.push(`/ticket/${result.order_id}`);
           },
-          // Error -> Alert
-          onError: function(result: any) {
+          onError: function(result: Record<string, unknown>) {
             console.error("Payment Error:", result);
             alert("Pembayaran gagal! Silakan coba lagi.");
           },
-          // Close -> Alert
           onClose: function() {
             alert("Anda belum menyelesaikan pembayaran.");
           }
@@ -78,7 +75,8 @@ export default function CheckoutButton({ items, total, customerName, whatsapp, d
       } else {
         alert("Gagal mendapatkan token pembayaran");
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error(error);
       alert("Terjadi kesalahan sistem");
     }

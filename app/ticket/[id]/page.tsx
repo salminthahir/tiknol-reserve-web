@@ -1,10 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import TicketUI from './TicketUI'; 
+import { OrderItem } from '@/types/order'; 
 
-// HAPUS SEMUA TIPE PROPS YANG MEMBINGUNGKAN, PAKAI ANY SEMENTARA BIAR JALAN DULU
-export default async function TicketPage(props: any) {
-  // 1. Akali Promise params (Next.js 15 Workaround)
-  const params = await props.params; 
+// Definisikan tipe untuk props halaman dinamis
+interface TicketPageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default async function TicketPage({ params }: TicketPageProps) {
   const id = params?.id; 
 
   if (!id) {
@@ -25,6 +30,15 @@ export default async function TicketPage(props: any) {
     );
   }
 
-  // 3. Render UI
-  return <TicketUI order={order} />;
+  // 3. Render UI (Pastikan order sesuai tipe yang diharapkan oleh TicketUI)
+  // Prisma terkadang menghasilkan tipe Date, sementara komponen butuh string.
+  // Kita konversi di sini untuk memastikan konsistensi.
+  const serializedOrder = {
+    ...order,
+    items: order.items as OrderItem[], // Pastikan tipe items benar
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+  };
+
+  return <TicketUI order={serializedOrder} />;
 }

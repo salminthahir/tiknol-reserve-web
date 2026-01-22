@@ -119,7 +119,7 @@ export default function TicketUI({ order }: { order: Order }) {
 
   const handleResume = () => {
     if (!liveOrder.snapToken) return alert("Token tidak ditemukan, hubungi admin.");
-    // @ts-expect-error
+    // @ts-expect-error - window.snap di-inject oleh script Midtrans secara global
     window.snap.pay(liveOrder.snapToken, {
       onSuccess: (result: Record<string, unknown>) => { console.log(result); setLiveOrder({...liveOrder, status: 'PAID' }); },
       onPending: (result: Record<string, unknown>) => { console.log(result); },
