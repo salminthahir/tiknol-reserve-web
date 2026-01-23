@@ -1,40 +1,47 @@
 // app/api/tokenizer/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // <--- PERUBAHAN 1: Import dari lib/prisma
+import { prisma } from "@/lib/prisma"; 
 import { snap } from "@/lib/midtrans";
 
-// HAPUS BARIS INI: const prisma = new PrismaClient(); <--- PERUBAHAN 2: Hapus ini
-
-// Di dalam file api/tokenizer/route.js
-
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerName, whatsapp, items } = body;
+    const { customerName, whatsapp, items } = body; 
 
-    // 1. Hitung totalAmount dari array items
-    const calculatedTotalAmount = items.reduce((total, item) => {
-      return total + (item.price * item.qty);
+    // --- PERBAIKAN: Hitung totalAmount di backend agar lebih aman ---
+    const calculatedTotal = items.reduce((acc: number, item: any) => {
+      return acc + (item.price * item.qty);
     }, 0);
 
-    // 2. Masukkan totalAmount ke dalam perintah Prisma create
-    const order = await prisma.order.create({
+    // 2. Buat Order Baru di Database
+    const newOrder = await prisma.order.create({
       data: {
-        customerName: customerName,
-        whatsapp: whatsapp,
-        items: items, // Asumsi ini disimpan sebagai tipe data JSON di Prisma
+        customerName,
+        whatsapp,
+        totalAmount: calculatedTotal, // Gunakan hasil hitungan backend
+        items: items, 
         status: "PENDING",
-        totalAmount: calculatedTotalAmount, // <-- TAMBAHKAN BARIS INI
       },
     });
 
-    return Response.json({ success: true, order });
-
-  } catch (error) {
-    console.error("Error creating transaction:", error);
-    return Response.json({ error: error.message }, { status: 500 });
-  }
-}
+    // 3. Siapkan Parameter Midtrans
+    const parameter = {
+      transaction_details: {
+        // Gunakan ID dari database dan total yang sudah dihitung
+        order_id: String(newOrder.id), 
+        gross_amount: calculatedTotal,
+      },
+      item_details: items.map((item: any) => ({
+        id: String(item.id),
+        price: item.price,
+        quantity: item.qty,
+        name: item.name,
+      })),
+      customer_details: {
+        first_name: customerName,
+        phone: whatsapp,
+      },
+    };
 
     // 4. Minta Token
     const transaction = await snap.createTransaction(parameter);
@@ -51,8 +58,11 @@ export async function POST(request) {
       orderId: newOrder.id 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating transaction:", error);
-    return NextResponse.json({ error: "Gagal memproses order" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memproses order", details: error.message }, 
+      { status: 500 }
+    );
   }
 }
