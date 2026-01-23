@@ -1,55 +1,57 @@
 // app/api/notification/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { snap } from "@/lib/midtrans";
 
 export async function POST(request: Request) {
   try {
-    const notificationJson = await request.json();
+    const body = await request.json();
+    const { order_id, transaction_status, fraud_status } = body;
 
-    // 1. VERIFIKASI KEAMANAN (Wajib ada!)
-    const statusResponse = await snap.transaction.notification(notificationJson);
+    console.log(`🔔 NOTIFIKASI MASUK untuk Order ID: ${order_id}`);
+    console.log(`📊 Status Midtrans: ${transaction_status}`);
 
-    const orderId = statusResponse.order_id;
-    const transactionStatus = statusResponse.transaction_status;
-    const fraudStatus = statusResponse.fraud_status;
+    // 1. CEK DULU: APAKAH ORDER INI ADA DI DATABASE KITA?
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: order_id },
+    });
 
-    console.log(`🔒 SECURE WEBHOOK: ${orderId} | ${transactionStatus}`);
+    if (!existingOrder) {
+      console.warn(`⚠️ ORDER TIDAK DITEMUKAN: ${order_id}. Mungkin data lama yang sudah dihapus.`);
+      
+      // PENTING: Tetap return 200 OK agar Midtrans berhenti mengirim notifikasi hantu ini.
+      return NextResponse.json({ message: "Order not found, but acknowledged to stop retry" });
+    }
 
-    // 2. Logic Mapping Status
-    let newStatus = "";
-
-    if (transactionStatus == "capture") {
-      if (fraudStatus == "challenge") {
-        newStatus = "CHALLENGE";
-      } else if (fraudStatus == "accept") {
-        newStatus = "PAID";
+    // 2. TENTUKAN STATUS BARU
+    let newStatus = '';
+    if (transaction_status === 'capture') {
+      if (fraud_status === 'challenge') {
+        newStatus = 'PENDING';
+      } else if (fraud_status === 'accept') {
+        newStatus = 'PAID';
       }
-    } else if (transactionStatus == "settlement") {
-      newStatus = "PAID";
-    } else if (
-      transactionStatus == "cancel" ||
-      transactionStatus == "deny" ||
-      transactionStatus == "expire"
-    ) {
-      newStatus = "FAILED";
-    } else if (transactionStatus == "pending") {
-      newStatus = "PENDING";
+    } else if (transaction_status === 'settlement') {
+      newStatus = 'PAID';
+    } else if (['cancel', 'deny', 'expire'].includes(transaction_status)) {
+      newStatus = 'FAILED';
+    } else if (transaction_status === 'pending') {
+      newStatus = 'PENDING';
     }
 
-    // 3. Update Database (Hanya jika status berubah)
-    if (newStatus && newStatus !== "") {
-        await prisma.order.update({
-            where: { id: orderId },
-            data: { status: newStatus }
-        });
-        console.log(`✅ DB UPDATED: ${orderId} status to ${newStatus}`);
+    // 3. UPDATE JIKA STATUS VALID
+    if (newStatus) {
+      await prisma.order.update({
+        where: { id: order_id },
+        data: { status: newStatus }
+      });
+      console.log(`✅ SUKSES UPDATE: Order ${order_id} jadi ${newStatus}`);
     }
 
-    return NextResponse.json({ status: "OK" });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error("❌ Webhook Error:", error);
-    return NextResponse.json({ status: "Error" }, { status: 200 });
+    console.error("❌ ERROR WEBHOOK:", error);
+    // Return 500 hanya jika error coding, agar kita tau di log Vercel
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
