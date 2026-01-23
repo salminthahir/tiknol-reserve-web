@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+
+// --- DEKLARASI GLOBAL TYPE ---
+// Agar TypeScript mengenali window.snap dari Midtrans
+declare global {
+  interface Window {
+    snap: any;
+  }
+}
 
 // --- TIPE DATA ---
 type Product = {
@@ -24,6 +33,7 @@ export default function POSPage() {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const router = useRouter();
   
   // STATE BARU: Untuk mengontrol tampilan Cart di Mobile
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -72,16 +82,114 @@ export default function POSPage() {
   const handlePayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
-    // ... (Logika QRIS sama seperti sebelumnya)
-    // Simulasi sebentar
-    setTimeout(() => setIsProcessingPayment(false), 2000);
+
+    try {
+      const orderPayload = {
+        customerName: "Customer POS", // Placeholder customer name for POS transactions
+        whatsapp: "N/A",      // Placeholder WhatsApp for POS transactions
+        items: cart.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          qty: item.qty,
+        })),
+        // grandTotal is not sent here directly, as the backend will calculate it
+        // based on the `items` for security/consistency.
+      };
+
+      // 2. Request Snap token from your API
+      const res = await fetch('/api/tokenizer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Failed to get Snap Token: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const transactionToken = data.transactionToken;
+
+      // 3. Open Midtrans Snap pop-up
+      if (window.snap) {
+        window.snap.pay(transactionToken, {
+          onSuccess: async function(result: any) {
+            // PERBAIKAN DI SINI: Menggunakan result.order_id dari response Midtrans
+            router.push(`/ticket/${result.order_id}/print`);
+            setCart([]); // Clear cart after successful payment
+            setIsProcessingPayment(false);
+          },
+          onPending: function(result: any) {
+            alert("Payment Pending! " + result.transaction_id);
+            setIsProcessingPayment(false);
+          },
+          onError: function(result: any) {
+            alert("Payment Error! " + result.transaction_id);
+            setIsProcessingPayment(false);
+          },
+          onClose: function() {
+            alert('You closed the popup without finishing the payment');
+            setIsProcessingPayment(false);
+          }
+        });
+      } else {
+        alert("Midtrans Snap is not loaded. Please try again.");
+        setIsProcessingPayment(false);
+      }
+    } catch (err: any) {
+      console.error("Payment failed:", err);
+      alert(`Payment failed: ${err.message || 'Unknown error'}`);
+      setIsProcessingPayment(false);
+    }
   };
 
   const handleCashPayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
-    // ... (Logika Cash sama seperti sebelumnya)
-    setTimeout(() => setIsProcessingPayment(false), 2000);
+
+    try {
+      const orderData = {
+        customerName: "Customer POS", // Placeholder customer name for POS cash transactions
+        whatsapp: "N/A",      // Placeholder WhatsApp for POS cash transactions
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          qty: item.qty,
+        })),
+        totalAmount: grandTotal, // Renamed 'total' to 'totalAmount' as expected by backend
+        // paymentMethod is handled by the backend directly, no need to send here
+      };
+
+      const res = await fetch('/api/cash-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Failed to process cash payment: ${res.status}`);
+      }
+
+      const newOrder = await res.json(); // Assuming the API returns the created order object
+
+      alert(`Pembayaran Tunai Berhasil! Pesanan ID: ${newOrder.id}`);
+      window.open(`/ticket/${newOrder.id}/print`, '_blank'); // Open print page in new tab
+      setCart([]); // Clear cart after successful payment
+      setIsProcessingPayment(false);
+
+    } catch (err: any) {
+      console.error("Cash payment failed:", err);
+      alert(`Pembayaran tunai gagal: ${err.message || 'Terjadi kesalahan'}`);
+      setIsProcessingPayment(false);
+    }
   };
   
   // --- FILTERING ---
@@ -101,20 +209,15 @@ export default function POSPage() {
         strategy="lazyOnload"
       />
 
-      {/* LAYOUT UTAMA:
-         Menggunakan flex-col untuk Mobile (atas-bawah)
-         Menggunakan flex-row untuk Desktop (lg) (kiri-kanan)
-      */}
+      {/* LAYOUT UTAMA */}
       <div className="flex h-screen bg-[#F5F5F5] font-sans text-black overflow-hidden flex-col lg:flex-row relative">
         
         {/* === BAGIAN KIRI: MENU === */}
-        {/* flex-1 agar memenuhi ruang, overflow-hidden agar scroll independent */}
         <div className="flex-1 flex flex-col lg:border-r-4 lg:border-black w-full h-full">
           
           {/* Header Mobile/Desktop */}
           <div className="p-4 lg:p-6 bg-white border-b-4 border-black flex flex-col gap-3 lg:gap-4 shrink-0">
             <div className="flex justify-between items-center">
-              {/* Ukuran font responsif: text-2xl di HP, text-4xl di Desktop */}
               <h1 className="text-2xl lg:text-4xl font-black italic tracking-tighter uppercase">
                 TIKNOL <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FBC02D] to-yellow-600">POS</span>
               </h1>
@@ -122,7 +225,6 @@ export default function POSPage() {
                  <Link href="/admin/menu" className="bg-black text-white px-3 py-1 text-xs font-mono font-bold hover:bg-gray-800">MENU</Link>
                  <Link href="/admin/dashboard" className="bg-black text-white px-3 py-1 text-xs font-mono font-bold hover:bg-gray-800">KITCHEN</Link>
               </div>
-              {/* Tombol Menu Manager Mobile (Icon Only) */}
               <div className="lg:hidden">
                 <Link href="/admin/dashboard" className="bg-black text-white p-2 text-xs font-mono font-bold">DASHBOARD</Link>
               </div>
@@ -158,7 +260,6 @@ export default function POSPage() {
                   <p className="font-black text-xl animate-pulse">LOADING...</p>
                 </div>
              ) : (
-               // Grid Responsif: 2 kolom (HP), 3 (Tablet), 4 (Desktop)
                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
                  {filteredProducts.map((product) => (
                    <div key={product.id} onClick={() => addToCart(product)} className="group relative bg-white border-2 border-black cursor-pointer transition-transform active:scale-95 shadow-[3px_3px_0px_0px_black] hover:shadow-[6px_6px_0px_0px_black]">
@@ -183,7 +284,6 @@ export default function POSPage() {
         </div>
 
         {/* === TOMBOL FLOATING (HANYA HP) === */}
-        {/* Muncul jika cart tidak kosong */}
         {cart.length > 0 && (
           <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
              <button 
@@ -200,9 +300,6 @@ export default function POSPage() {
         )}
 
         {/* === BAGIAN KANAN: CART === */}
-        {/* Pada Desktop (lg): Tampil Statis (w-[400px]).
-            Pada Mobile: Menjadi Modal Full Screen (fixed inset-0) yang bisa ditoggle.
-        */}
         <div className={`
             bg-white flex flex-col border-l-4 border-black z-50 transition-transform duration-300
             ${isMobileCartOpen ? 'fixed inset-0 translate-y-0' : 'fixed inset-0 translate-y-[100%]'} 
@@ -211,7 +308,6 @@ export default function POSPage() {
            {/* Header Cart */}
            <div className="p-4 lg:p-6 bg-black text-white border-b-4 border-black flex justify-between items-center shrink-0">
              <h2 className="font-black text-xl lg:text-2xl tracking-widest uppercase">Current Order</h2>
-             {/* Tombol Close khusus Mobile */}
              <button onClick={() => setIsMobileCartOpen(false)} className="lg:hidden text-white font-bold text-sm bg-red-600 px-3 py-1 border border-white">
                 TUTUP X
              </button>

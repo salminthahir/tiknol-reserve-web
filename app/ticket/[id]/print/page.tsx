@@ -37,7 +37,7 @@ export default function PrintReceiptPage() {
           }
           const data: Order = await res.json();
           // Pastikan items adalah array, karena di DB disimpan sebagai Json
-          data.items = JSON.parse(JSON.stringify(data.items)); // ensure it's a proper array of objects
+          data.items = typeof data.items === 'string' ? JSON.parse(data.items) : data.items; // ensure it's a proper array of objects
           setOrder(data);
         } catch (err: any) {
           console.error(err);
