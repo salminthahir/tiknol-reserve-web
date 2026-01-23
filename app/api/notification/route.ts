@@ -1,16 +1,13 @@
 // app/api/notification/route.ts
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { snap } from "@/lib/midtrans"; // Pastikan import ini ada
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { snap } from "@/lib/midtrans";
 
 export async function POST(request: Request) {
   try {
     const notificationJson = await request.json();
-    
+
     // 1. VERIFIKASI KEAMANAN (Wajib ada!)
-    // Ini memastikan data benar-benar dari Midtrans, bukan hacker.
     const statusResponse = await snap.transaction.notification(notificationJson);
 
     const orderId = statusResponse.order_id;
@@ -20,7 +17,7 @@ export async function POST(request: Request) {
     console.log(`🔒 SECURE WEBHOOK: ${orderId} | ${transactionStatus}`);
 
     // 2. Logic Mapping Status
-    let newStatus = ""; // Kosongkan dulu
+    let newStatus = "";
 
     if (transactionStatus == "capture") {
       if (fraudStatus == "challenge") {
@@ -35,7 +32,7 @@ export async function POST(request: Request) {
       transactionStatus == "deny" ||
       transactionStatus == "expire"
     ) {
-      newStatus = "FAILED"; // Atau 'CANCELLED' sesuai selera
+      newStatus = "FAILED";
     } else if (transactionStatus == "pending") {
       newStatus = "PENDING";
     }
@@ -46,14 +43,13 @@ export async function POST(request: Request) {
             where: { id: orderId },
             data: { status: newStatus }
         });
-        console.log(`✅ DB UPDATED: ${newStatus}`);
+        console.log(`✅ DB UPDATED: ${orderId} status to ${newStatus}`);
     }
 
     return NextResponse.json({ status: "OK" });
 
   } catch (error) {
     console.error("❌ Webhook Error:", error);
-    // Tetap return 200 agar Midtrans tidak spam error, tapi catat di log
     return NextResponse.json({ status: "Error" }, { status: 200 });
   }
 }

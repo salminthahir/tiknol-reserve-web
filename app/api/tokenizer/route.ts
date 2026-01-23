@@ -1,34 +1,43 @@
 // app/api/tokenizer/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // <--- PERUBAHAN 1: Import dari lib/prisma
+import { prisma } from "@/lib/prisma"; 
 import { snap } from "@/lib/midtrans";
-
-// HAPUS BARIS INI: const prisma = new PrismaClient(); <--- PERUBAHAN 2: Hapus ini
 
 export async function POST(request: Request) {
   try {
-    // 1. Baca Data CUMA SEKALI
     const body = await request.json();
-    const { customerName, whatsapp, items, total } = body; 
+    const { customerName, whatsapp, items } = body; 
+
+    // --- PERBAIKAN: Hitung totalAmount di backend agar lebih aman ---
+    const calculatedTotal = items.reduce((acc: number, item: any) => {
+      return acc + (item.price * item.qty);
+    }, 0);
 
     // 2. Buat Order Baru di Database
-    // (Sekarang menggunakan 'prisma' yang di-import, bukan variabel lokal)
     const newOrder = await prisma.order.create({
       data: {
         customerName,
         whatsapp,
-        totalAmount: total,
+        totalAmount: calculatedTotal, // Gunakan hasil hitungan backend
         items: items, 
         status: "PENDING",
+        paymentType: "QRIS", // Tambahkan paymentType untuk Midtrans
       },
     });
 
     // 3. Siapkan Parameter Midtrans
     const parameter = {
       transaction_details: {
-        order_id: newOrder.id,
-        gross_amount: total,
+        // Gunakan ID dari database dan total yang sudah dihitung
+        order_id: String(newOrder.id), 
+        gross_amount: calculatedTotal,
       },
+      item_details: items.map((item: any) => ({
+        id: String(item.id),
+        price: item.price,
+        quantity: item.qty,
+        name: item.name,
+      })),
       customer_details: {
         first_name: customerName,
         phone: whatsapp,
@@ -50,8 +59,11 @@ export async function POST(request: Request) {
       orderId: newOrder.id 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating transaction:", error);
-    return NextResponse.json({ error: "Gagal memproses order" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memproses order", details: error.message }, 
+      { status: 500 }
+    );
   }
 }

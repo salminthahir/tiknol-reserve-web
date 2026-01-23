@@ -24,18 +24,172 @@ const MENU_ITEMS: MenuItem[] = [
   { 
     id: 101, category: 'COFFEE SERIES', name: 'TIKNOL KOPI', price: 20000, 
     description: 'Signature coffee blend dari Titik Nol. Creamy, bold, and distinct.', 
-    image: '/img/IMG_8565.jpg'
+    image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=800&q=80' 
   },
   { 
     id: 102, category: 'COFFEE SERIES', name: 'AMERICANO', price: 20000, 
     description: 'Espresso shot dengan air mineral. Tersedia panas/dingin. Pure caffeine kick.', 
-    image: '/img/IMG_8587.jpg' 
+    image: 'https://images.unsplash.com/photo-1551030173-122f523535c3?auto=format&fit=crop&w=800&q=80' 
   },
-    { 
+  { 
     id: 103, category: 'COFFEE SERIES', name: 'KOPI AREN', price: 20000, 
     description: 'Kopi susu dengan gula aren asli yang legit. Favorit sejuta umat.', 
-    image: '/img/Space01.png'
+    image: 'https://images.unsplash.com/photo-1461023058943-48dbf13994c6?auto=format&fit=crop&w=800&q=80' 
   },
+  { 
+    id: 104, category: 'COFFEE SERIES', name: 'COCONUT KOPI', price: 20000, 
+    description: 'Perpaduan kopi dengan rasa kelapa yang gurih dan segar tropical.', 
+    image: 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 105, category: 'COFFEE SERIES', name: 'KLEPON KOPI', price: 20000, 
+    description: 'Unik! Rasa jajanan pasar Klepon (Pandan & Kelapa) dalam segelas kopi.', 
+    image: 'https://images.unsplash.com/photo-1626500145961-d7790b4d4586?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 106, category: 'COFFEE SERIES', name: 'CARAMEL MACHIATO', price: 20000, 
+    description: 'Espresso, vanilla syrup, steamed milk, dan drizzle caramel manis.', 
+    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 107, category: 'COFFEE SERIES', name: 'HAZELNUT KOPI', price: 20000, 
+    description: 'Kopi susu dengan aroma kacang Hazelnut yang wangi dan nutty.', 
+    image: 'https://images.unsplash.com/photo-1632054010678-7f2e5a1a7355?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 108, category: 'COFFEE SERIES', name: 'VANILLA KOPI', price: 20000, 
+    description: 'Klasik kopi susu dengan sirup Vanilla yang lembut.', 
+    image: 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 109, category: 'COFFEE SERIES', name: 'CAPPUCINO', price: 20000, 
+    description: 'Espresso dengan foam susu tebal. Tersedia Panas/Dingin.', 
+    image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 110, category: 'COFFEE SERIES', name: 'V60 MANUAL BREW', price: 20000, 
+    description: 'Seduhan manual pour-over. Tanya barista untuk beans of the week.', 
+    image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 111, category: 'COFFEE SERIES', name: 'TITIK LITERAN', price: 115000, 
+    description: 'Kopi botolan 1 Liter. Stok kafein untuk seharian di rumah/kantor.', 
+    image: 'https://images.unsplash.com/photo-1606791405555-41c36b745421?auto=format&fit=crop&w=800&q=80' 
+  },
+
+  // --- KATEGORI: NON-COFFEE ---
+  { 
+    id: 201, category: 'NON-COFFEE', name: 'MATCHA', price: 20000, 
+    description: 'Green tea Jepang creamy. Tersedia Panas/Dingin.', 
+    image: 'https://images.unsplash.com/photo-1515823662972-da6a2e4d3002?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 202, category: 'NON-COFFEE', name: 'RED VELVET', price: 20000, 
+    description: 'Rasa kue Red Velvet dalam bentuk minuman. Manis dan cantik.', 
+    image: 'https://images.unsplash.com/photo-1566318956977-3e6f66293427?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 203, category: 'NON-COFFEE', name: 'TARO MILK', price: 20000, 
+    description: 'Minuman rasa ubi ungu yang manis, gurih, dan milky.', 
+    image: 'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 204, category: 'NON-COFFEE', name: 'COKLAT MILK', price: 20000, 
+    description: 'Susu coklat klasik yang rich. Comfort drink terbaik.', 
+    image: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 205, category: 'NON-COFFEE', name: 'TIKNOL SODA', price: 20000, 
+    description: 'Minuman soda segar racikan spesial Titik Nol.', 
+    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 206, category: 'NON-COFFEE', name: 'STROBERI TEA', price: 20000, 
+    description: 'Teh rasa stroberi yang asam manis menyegarkan.', 
+    image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 207, category: 'NON-COFFEE', name: 'LEMON TEA', price: 20000, 
+    description: 'Teh dengan perasan lemon asli. Vitamin C booster.', 
+    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 208, category: 'NON-COFFEE', name: 'TIKNOL CURAH', price: 20000, 
+    description: 'Minuman botolan praktis siap minum.', 
+    image: 'https://images.unsplash.com/photo-1625244515599-4d6cb4b21644?auto=format&fit=crop&w=800&q=80' 
+  },
+
+  // --- KATEGORI: HEAVY MEALS ---
+  { 
+    id: 301, category: 'HEAVY MEALS', name: 'NASI CHICKEN TERIYAKI', price: 23000, 
+    description: 'Nasi dengan ayam saus Teriyaki jepang yang manis gurih.', 
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 302, category: 'HEAVY MEALS', name: 'NASGOR TIKNOL', price: 23000, 
+    description: 'Nasi goreng spesial bumbu rahasia dapur Titik Nol.', 
+    image: 'https://images.unsplash.com/photo-1603133872878-684f208fb74b?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 303, category: 'HEAVY MEALS', name: 'NASGOR SAMBAL ROA', price: 23000, 
+    description: 'Nasi goreng pedas dengan aroma khas ikan asap Sambal Roa.', 
+    image: 'https://images.unsplash.com/photo-1636136701831-7b0292500d0f?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 304, category: 'HEAVY MEALS', name: 'SATE TAICHAN', price: 23000, 
+    description: 'Sate ayam daging putih dibakar polos dengan sambal pedas nampol.', 
+    image: 'https://images.unsplash.com/photo-1529563021898-1d1565e38fa9?auto=format&fit=crop&w=800&q=80' 
+  },
+
+  // --- KATEGORI: NOODLES & RICE ---
+  { 
+    id: 401, category: 'NOODLES', name: 'INDOMIE GORENG', price: 13000, 
+    description: 'Indomie goreng dimasak perfectly al dente + Telur.', 
+    image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 402, category: 'NOODLES', name: 'INDOMIE KUAH', price: 13000, 
+    description: 'Indomie rebus hangat dengan sayur dan telur. Cocok saat hujan.', 
+    image: 'https://images.unsplash.com/photo-1596450531557-4d7a8bffa931?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 403, category: 'NOODLES', name: 'NASI PUTIH', price: 5000, 
+    description: 'Nasi putih hangat tambahan.', 
+    image: 'https://images.unsplash.com/photo-1576449177114-19280a58145b?auto=format&fit=crop&w=800&q=80' 
+  },
+
+  // --- KATEGORI: SNACKS ---
+  { 
+    id: 501, category: 'SNACKS', name: 'TAHU WALIK', price: 18000, 
+    description: 'Tahu goreng dibalik dengan isian aci daging yang kenyal.', 
+    image: 'https://images.unsplash.com/photo-1630402773295-d6d7b420f18c?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 502, category: 'SNACKS', name: 'KENTANG GORENG', price: 18000, 
+    description: 'Classic french fries. Gurih dan renyah.', 
+    image: 'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 503, category: 'SNACKS', name: 'PIS-GOR SAMBAL ROA', price: 23000, 
+    description: 'Pisang goreng dicocol sambal roa? Kombinasi manis pedas unik Manado.', 
+    image: 'https://images.unsplash.com/photo-1628325852553-61b474cc0419?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 504, category: 'SNACKS', name: 'CHEESE ROLL', price: 13000, 
+    description: 'Keju lumer dibalut kulit lumpia renyah.', 
+    image: 'https://images.unsplash.com/photo-1600492080034-7299a9103e5c?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 505, category: 'SNACKS', name: 'CHURROS', price: 13000, 
+    description: 'Donat spanyol panjang dengan taburan gula kayu manis & saus coklat.', 
+    image: 'https://images.unsplash.com/photo-1624371414361-e670edf4898d?auto=format&fit=crop&w=800&q=80' 
+  },
+  { 
+    id: 506, category: 'SNACKS', name: 'DONAT KENTANG', price: 18000, 
+    description: '2 pcs Donat kentang klasik yang empuk.', 
+    image: 'https://images.unsplash.com/photo-1527515545081-75a45e197b06?auto=format&fit=crop&w=800&q=80' 
+  },
+
   // ... Tambahkan sisa menu items di sini jika ada path gambar lokalnya
   // Untuk sementara, item lain di-comment agar tidak error jika gambar tidak ada
 ];

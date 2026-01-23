@@ -27,8 +27,24 @@ model Order {
   
   // Token Midtrans (Disimpan biar user bisa resume payment)
   snapToken    String?  
+
+  orderSource  String  @default("WEB_CUSTOMER") // Values: "WEB_CUSTOMER", "CASHIER_POS"
+  paymentType  String // "CASH", "QRIS", "DEBIT"
   
   // Waktu
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Int
+  image       String?  // URL gambar dari Supabase Storage
+  category    String   // Misal: "Coffee", "Non-Coffee", "Snack"
+  isAvailable Boolean  @default(true) // Buat switch On/Off stok habis
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

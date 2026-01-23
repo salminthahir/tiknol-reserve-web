@@ -46,7 +46,7 @@ export default function CheckoutButton({ items, total, customerName, whatsapp, d
           customerName,
           whatsapp,
           items,
-          total
+          totalAmount: total
         }),
       });
 

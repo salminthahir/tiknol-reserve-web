@@ -102,7 +102,7 @@ export default function TicketUI({ order }: { order: Order }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isClient, liveOrder.id, liveOrder.status]);
+  }, [isClient, liveOrder.id]);
 
   useEffect(() => {
     if (liveOrder.status === 'PENDING') {
