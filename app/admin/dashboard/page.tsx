@@ -16,10 +16,27 @@ export default function AdminDashboard() {
 
   // Pindahkan deklarasi fungsi ke atas
   const fetchOrders = async () => {
-    const res = await fetch('/api/admin/orders'); 
-    const data = await res.json();
-    setOrders(data);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/admin/orders'); 
+      if (!res.ok) {
+        throw new Error(`Failed to fetch orders: Status ${res.status}`);
+      }
+      const data: Order[] = await res.json();
+      
+      // Parse the 'items' field only if it's a string.
+      // If it's already an object/array (from JSONB), use it directly.
+      const parsedOrders = data.map(order => ({
+        ...order,
+        items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
+      }));
+
+      setOrders(parsedOrders);
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Failed to fetch orders:", error);
+      alert(`Gagal mengambil data order: ${error.message || 'Unknown error'}. Silakan coba lagi.`);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
