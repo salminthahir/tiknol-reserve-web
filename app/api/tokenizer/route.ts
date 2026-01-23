@@ -5,35 +5,36 @@ import { snap } from "@/lib/midtrans";
 
 // HAPUS BARIS INI: const prisma = new PrismaClient(); <--- PERUBAHAN 2: Hapus ini
 
-export async function POST(request: Request) {
-  try {
-    // 1. Baca Data CUMA SEKALI
-    const body = await request.json();
-    const { customerName, whatsapp, items, total } = body; 
+// Di dalam file api/tokenizer/route.js
 
-    // 2. Buat Order Baru di Database
-    // (Sekarang menggunakan 'prisma' yang di-import, bukan variabel lokal)
-    const newOrder = await prisma.order.create({
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { customerName, whatsapp, items } = body;
+
+    // 1. Hitung totalAmount dari array items
+    const calculatedTotalAmount = items.reduce((total, item) => {
+      return total + (item.price * item.qty);
+    }, 0);
+
+    // 2. Masukkan totalAmount ke dalam perintah Prisma create
+    const order = await prisma.order.create({
       data: {
-        customerName,
-        whatsapp,
-        totalAmount: total,
-        items: items, 
+        customerName: customerName,
+        whatsapp: whatsapp,
+        items: items, // Asumsi ini disimpan sebagai tipe data JSON di Prisma
         status: "PENDING",
+        totalAmount: calculatedTotalAmount, // <-- TAMBAHKAN BARIS INI
       },
     });
 
-    // 3. Siapkan Parameter Midtrans
-    const parameter = {
-      transaction_details: {
-        order_id: newOrder.id,
-        gross_amount: total,
-      },
-      customer_details: {
-        first_name: customerName,
-        phone: whatsapp,
-      },
-    };
+    return Response.json({ success: true, order });
+
+  } catch (error) {
+    console.error("Error creating transaction:", error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
 
     // 4. Minta Token
     const transaction = await snap.createTransaction(parameter);
