@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import Image from 'next/image';
+<<<<<<< HEAD
 import { useRouter } from 'next/navigation';
 
 // --- DEKLARASI GLOBAL TYPE ---
@@ -14,6 +15,9 @@ declare global {
   }
 }
 
+=======
+
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
 // --- TIPE DATA ---
 type Product = {
   id: string;
@@ -33,7 +37,10 @@ export default function POSPage() {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+<<<<<<< HEAD
   const router = useRouter();
+=======
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
   
   // STATE BARU: Untuk mengontrol tampilan Cart di Mobile
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -82,6 +89,7 @@ export default function POSPage() {
   const handlePayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
+<<<<<<< HEAD
 
     try {
       const orderPayload = {
@@ -144,11 +152,17 @@ export default function POSPage() {
       alert(`Payment failed: ${err.message || 'Unknown error'}`);
       setIsProcessingPayment(false);
     }
+=======
+    // ... (Logika QRIS sama seperti sebelumnya)
+    // Simulasi sebentar
+    setTimeout(() => setIsProcessingPayment(false), 2000);
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
   };
 
   const handleCashPayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
+<<<<<<< HEAD
 
     try {
       const orderData = {
@@ -189,6 +203,10 @@ export default function POSPage() {
       alert(`Pembayaran tunai gagal: ${err.message || 'Terjadi kesalahan'}`);
       setIsProcessingPayment(false);
     }
+=======
+    // ... (Logika Cash sama seperti sebelumnya)
+    setTimeout(() => setIsProcessingPayment(false), 2000);
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
   };
   
   // --- FILTERING ---
@@ -208,15 +226,30 @@ export default function POSPage() {
         strategy="lazyOnload"
       />
 
+<<<<<<< HEAD
       {/* LAYOUT UTAMA */}
       <div className="flex h-screen bg-[#F5F5F5] font-sans text-black overflow-hidden flex-col lg:flex-row relative">
         
         {/* === BAGIAN KIRI: MENU === */}
+=======
+      {/* LAYOUT UTAMA:
+         Menggunakan flex-col untuk Mobile (atas-bawah)
+         Menggunakan flex-row untuk Desktop (lg) (kiri-kanan)
+      */}
+      <div className="flex h-screen bg-[#F5F5F5] font-sans text-black overflow-hidden flex-col lg:flex-row relative">
+        
+        {/* === BAGIAN KIRI: MENU === */}
+        {/* flex-1 agar memenuhi ruang, overflow-hidden agar scroll independent */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
         <div className="flex-1 flex flex-col lg:border-r-4 lg:border-black w-full h-full">
           
           {/* Header Mobile/Desktop */}
           <div className="p-4 lg:p-6 bg-white border-b-4 border-black flex flex-col gap-3 lg:gap-4 shrink-0">
             <div className="flex justify-between items-center">
+<<<<<<< HEAD
+=======
+              {/* Ukuran font responsif: text-2xl di HP, text-4xl di Desktop */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
               <h1 className="text-2xl lg:text-4xl font-black italic tracking-tighter uppercase">
                 TIKNOL <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FBC02D] to-yellow-600">POS</span>
               </h1>
@@ -224,6 +257,10 @@ export default function POSPage() {
                  <Link href="/admin/menu" className="bg-black text-white px-3 py-1 text-xs font-mono font-bold hover:bg-gray-800">MENU</Link>
                  <Link href="/admin/dashboard" className="bg-black text-white px-3 py-1 text-xs font-mono font-bold hover:bg-gray-800">KITCHEN</Link>
               </div>
+<<<<<<< HEAD
+=======
+              {/* Tombol Menu Manager Mobile (Icon Only) */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
               <div className="lg:hidden">
                 <Link href="/admin/dashboard" className="bg-black text-white p-2 text-xs font-mono font-bold">DASHBOARD</Link>
               </div>
@@ -259,6 +296,10 @@ export default function POSPage() {
                   <p className="font-black text-xl animate-pulse">LOADING...</p>
                 </div>
              ) : (
+<<<<<<< HEAD
+=======
+               // Grid Responsif: 2 kolom (HP), 3 (Tablet), 4 (Desktop)
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
                  {filteredProducts.map((product) => (
                    <div key={product.id} onClick={() => addToCart(product)} className="group relative bg-white border-2 border-black cursor-pointer transition-transform active:scale-95 shadow-[3px_3px_0px_0px_black] hover:shadow-[6px_6px_0px_0px_black]">
@@ -283,6 +324,10 @@ export default function POSPage() {
         </div>
 
         {/* === TOMBOL FLOATING (HANYA HP) === */}
+<<<<<<< HEAD
+=======
+        {/* Muncul jika cart tidak kosong */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
         {cart.length > 0 && (
           <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
              <button 
@@ -299,6 +344,12 @@ export default function POSPage() {
         )}
 
         {/* === BAGIAN KANAN: CART === */}
+<<<<<<< HEAD
+=======
+        {/* Pada Desktop (lg): Tampil Statis (w-[400px]).
+            Pada Mobile: Menjadi Modal Full Screen (fixed inset-0) yang bisa ditoggle.
+        */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
         <div className={`
             bg-white flex flex-col border-l-4 border-black z-50 transition-transform duration-300
             ${isMobileCartOpen ? 'fixed inset-0 translate-y-0' : 'fixed inset-0 translate-y-[100%]'} 
@@ -307,6 +358,10 @@ export default function POSPage() {
            {/* Header Cart */}
            <div className="p-4 lg:p-6 bg-black text-white border-b-4 border-black flex justify-between items-center shrink-0">
              <h2 className="font-black text-xl lg:text-2xl tracking-widest uppercase">Current Order</h2>
+<<<<<<< HEAD
+=======
+             {/* Tombol Close khusus Mobile */}
+>>>>>>> b6c8f86d29a0b75252989b243167b44c0dc664e0
              <button onClick={() => setIsMobileCartOpen(false)} className="lg:hidden text-white font-bold text-sm bg-red-600 px-3 py-1 border border-white">
                 TUTUP X
              </button>
