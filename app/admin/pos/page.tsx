@@ -112,7 +112,7 @@ export default function POSPage() {
       }
 
       const data = await res.json();
-      const transactionToken = data.transactionToken;
+      const transactionToken = data.token;
 
       // 3. Open Midtrans Snap pop-up
       if (window.snap) {
