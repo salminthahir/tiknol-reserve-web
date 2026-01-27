@@ -5,7 +5,8 @@ import { sendWhatsAppNotification } from "@/lib/whatsapp"; // Import fungsi noti
 // Base URL aplikasi untuk URL tiket
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
 
-export const runtime = nodejs;
+// Pastikan hanya ada satu deklarasi runtime dan dengan kutip
+export const runtime = 'nodejs'; 
 
 export async function POST(request: Request) {
   try {
@@ -72,4 +73,4 @@ export async function POST(request: Request) {
     console.error("❌ ERROR WEBHOOK:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}export const runtime = 'nodejs';
+}

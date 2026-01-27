@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 const FONNTE_API_TOKEN = process.env.FONNTE_API_TOKEN;
 const FONNTE_API_URL = "https://api.fonnte.com/send";
 
-export const runtime = nodejs;
+// Pastikan hanya ada satu deklarasi runtime dan dengan kutip
+export const runtime = 'nodejs'; 
 
 export async function POST(request: Request) {
   try {
@@ -53,4 +54,4 @@ export async function POST(request: Request) {
     console.error("Error in notify-whatsapp API route:", error);
     return NextResponse.json({ success: false, error: "Internal Server Error during notification process." }, { status: 500 });
   }
-}export const runtime = 'nodejs';
+}
