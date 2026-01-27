@@ -21,11 +21,13 @@ export default function Home() {
       
       {/* 1. NAVBAR */}
       <nav className="fixed top-0 w-full p-6 flex justify-between items-center z-50 mix-blend-difference">
-        <h1 className="text-xl font-black tracking-tighter">TITIK NOL<span className="text-[#FBC02D]">.</span></h1>
-        <span className="text-xs font-mono text-[#FBC02D] tracking-widest border border-[#FBC02D] px-2 py-1">
-          EST. 2020
-        </span>
-      </nav>
+  <h1 className="text-xl font-black tracking-tighter text-white">
+    <span className="text-[#FBC02D]">.</span>NOL
+  </h1>
+  <span className="text-xs font-mono text-[#FBC02D] tracking-widest border border-[#FBC02D] px-2 py-1">
+    EST. 2020
+  </span>
+</nav>
 
       {/* 2. HERO SECTION */}
       <section className="h-screen w-full flex flex-col justify-center items-center px-4 relative border-b border-[#FBC02D]/20">

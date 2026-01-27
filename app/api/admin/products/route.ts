@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = 'edge';
+
 // 1. GET: Dipakai oleh POS & Admin Menu untuk ambil daftar menu terbaru
 export async function GET() {
   try {
@@ -9,8 +11,19 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }, // Urutkan sesuai item terbaru (lebih aman)
     });
     return NextResponse.json(products);
-  } catch (error) {
-    return NextResponse.json({ error: "Gagal ambil menu" }, { status: 500 });
+  } catch (error: any) {
+    // FIX: Log error sebagai string untuk menghindari TypeError jika error-nya null
+    console.error("Error fetching products:", String(error)); 
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    return NextResponse.json(
+      { 
+        error: "Gagal mengambil data menu.",
+        details: errorMessage
+      }, 
+      { status: 500 }
+    );
   }
 }
 

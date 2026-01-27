@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = 'edge';
 // Supabase/Next.js butuh ini agar tidak men-cache data (Biar Realtime)
 export const dynamic = 'force-dynamic';
 

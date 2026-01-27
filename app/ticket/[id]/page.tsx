@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import TicketUI from './TicketUI'; 
 import { OrderItem } from '@/types/order';
 
+export const runtime = 'edge';
+
 interface TicketPageProps {
   params: Promise<{
     id: string;

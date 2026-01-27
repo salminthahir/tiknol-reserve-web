@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      { // Tambahkan img.lazcdn.com
+        protocol: 'https',
+        hostname: 'img.lazcdn.com',
+        port: '',
+        pathname: '/**',
+      },
+      { // Tambahkan plus.unsplash.com
+        protocol: 'https',
+        hostname: 'plus.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   
