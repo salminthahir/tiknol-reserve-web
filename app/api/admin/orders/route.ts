@@ -1,9 +1,7 @@
-// app/api/admin/orders/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Supabase/Next.js butuh ini agar tidak men-cache data (Biar Realtime)
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -22,4 +20,4 @@ export async function GET() {
     console.error("Gagal ambil order:", error);
     return NextResponse.json({ error: "Gagal mengambil data" }, { status: 500 });
   }
-}export const runtime = 'nodejs';
+}

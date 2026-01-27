@@ -8,8 +8,13 @@ interface NotificationData {
   message: string;
 }
 
+// Gunakan NEXT_PUBLIC_APP_BASE_URL yang sudah kita set dengan https://
+// Fallback ke http://localhost:3000 untuk pengembangan lokal jika NEXT_PUBLIC_APP_BASE_URL tidak ada
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
+
+
 export async function sendWhatsAppNotification(data: NotificationData) {
-  const targetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/notify-whatsapp`;
+  const targetUrl = `${APP_BASE_URL}/api/notify-whatsapp`;
   console.log(`[WhatsApp Notif] Attempting to fetch: ${targetUrl}`);
   console.log(`[WhatsApp Notif] Data to send:`, data);
 

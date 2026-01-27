@@ -6,6 +6,8 @@ import { customAlphabet } from 'nanoid'; // Import customAlphabet
 // Buat generator ID dengan alphabet huruf besar (A-Z) dan angka (0-9)
 const generateOrderId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 15);
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -74,4 +76,3 @@ export async function POST(request: Request) {
     );
   }
 }
-export const runtime = 'nodejs';

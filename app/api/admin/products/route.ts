@@ -1,7 +1,7 @@
-// app/api/admin/products/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = 'nodejs';
 
 // 1. GET: Dipakai oleh POS & Admin Menu untuk ambil daftar menu terbaru
 export async function GET() {
@@ -77,4 +77,4 @@ export async function DELETE(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: "Gagal hapus" }, { status: 500 });
   }
-}export const runtime = 'nodejs';
+}
