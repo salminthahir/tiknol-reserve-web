@@ -1,8 +1,11 @@
-// app/api/notification/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendWhatsAppNotification } from "@/lib/whatsapp"; // Import fungsi notifikasi
 
-export const runtime = 'edge';
+// Base URL aplikasi untuk URL tiket
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
+
+export const runtime = nodejs;
 
 export async function POST(request: Request) {
   try {
@@ -19,21 +22,24 @@ export async function POST(request: Request) {
 
     if (!existingOrder) {
       console.warn(`⚠️ ORDER TIDAK DITEMUKAN: ${order_id}. Mungkin data lama yang sudah dihapus.`);
-      
-      // PENTING: Tetap return 200 OK agar Midtrans berhenti mengirim notifikasi hantu ini.
       return NextResponse.json({ message: "Order not found, but acknowledged to stop retry" });
     }
 
     // 2. TENTUKAN STATUS BARU
     let newStatus = '';
+    let notificationMessage = '';
+    const ticketUrl = `${APP_BASE_URL}/ticket/${existingOrder.id}`;
+
     if (transaction_status === 'capture') {
       if (fraud_status === 'challenge') {
         newStatus = 'PENDING';
       } else if (fraud_status === 'accept') {
         newStatus = 'PAID';
+        notificationMessage = `🎉 Halo ${existingOrder.customerName}! Pesanan *Titiknol Reserve* Anda (${existingOrder.id}) telah berhasil dibayar dan sedang menunggu konfirmasi dapur kami. Pantau statusnya di sini: ${ticketUrl} ✨ Terima kasih telah memilih kami!`;
       }
     } else if (transaction_status === 'settlement') {
       newStatus = 'PAID';
+      notificationMessage = `🎉 Halo ${existingOrder.customerName}! Pesanan *Titiknol Reserve* Anda (${existingOrder.id}) telah berhasil dibayar dan sedang menunggu konfirmasi dapur kami. Pantau statusnya di sini: ${ticketUrl} ✨ Terima kasih telah memilih kami!`;
     } else if (['cancel', 'deny', 'expire'].includes(transaction_status)) {
       newStatus = 'FAILED';
     } else if (transaction_status === 'pending') {
@@ -41,19 +47,29 @@ export async function POST(request: Request) {
     }
 
     // 3. UPDATE JIKA STATUS VALID
-    if (newStatus) {
+    if (newStatus && newStatus !== existingOrder.status) { // Hanya update jika status berubah
       await prisma.order.update({
         where: { id: order_id },
         data: { status: newStatus }
       });
       console.log(`✅ SUKSES UPDATE: Order ${order_id} jadi ${newStatus}`);
+
+      // KIRIM NOTIFIKASI WHATSAPP jika status PAID dan ada pesan
+      if (newStatus === 'PAID' && notificationMessage) {
+        await sendWhatsAppNotification({
+          customerName: existingOrder.customerName,
+          whatsapp: existingOrder.whatsapp,
+          orderId: existingOrder.id,
+          status: newStatus,
+          message: notificationMessage
+        });
+      }
     }
 
     return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error("❌ ERROR WEBHOOK:", error);
-    // Return 500 hanya jika error coding, agar kita tau di log Vercel
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-}
+}export const runtime = 'nodejs';

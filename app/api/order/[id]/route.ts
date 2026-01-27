@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Params di Next.js 13+ diakses seperti ini
@@ -30,3 +29,4 @@ export async function GET(request: Request, context: Context) {
     return NextResponse.json({ error: "Gagal mengambil data" }, { status: 500 });
   }
 }
+export const runtime = 'nodejs';

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 
-export const runtime = 'edge';
 
 type OrderItem = {
   id: string;

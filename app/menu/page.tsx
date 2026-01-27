@@ -203,7 +203,7 @@ function MenuContent() {
                 </div>
                 <div className="p-3">
                   <h3 className="font-bold text-xs text-neutral-200 line-clamp-2 mb-2 group-hover:text-[#FBC02D] transition-colors uppercase">{product.name}</h3>
-                  <p className="font-mono font-bold text-xs text-white">{(product.price / 1000)}K</p>
+                  <p className="font-mono font-bold text-xs text-[#FBC02D]">{(product.price / 1000)}<span className="text-white">K</span></p>
                 </div>
               </div>
             ))}
@@ -220,7 +220,7 @@ function MenuContent() {
                 <span className="text-sm font-bold text-white font-mono">Rp {totalAmount.toLocaleString()}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 pr-4 pl-2 font-black text-[10px] tracking-[0.2em] uppercase text-white">Checkout <ArrowRight size={14} className="text-[#FBC02D]" /></div>
+            <div className="flex items-center gap-2 pr-4 pl-2 font-black text-[10px] tracking-[0.2em] uppercase text-[#FBC02D]">Checkout <ArrowRight size={14} className="text-white" /></div>
           </button>
         </div>
 
@@ -363,8 +363,8 @@ function MenuContent() {
           <div className="p-6 bg-[#0a0a0a] border-t border-white/10 space-y-5">
             {cart.length > 0 && (
               <div className="space-y-2">
-                <input type="text" placeholder="NAME" className="w-full bg-white/5 border border-white/5 p-3 rounded-lg text-[10px] font-mono uppercase focus:border-[#FBC02D] outline-none" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                <input type="tel" placeholder="WHATSAPP" className="w-full bg-white/5 border border-white/5 p-3 rounded-lg text-[10px] font-mono uppercase focus:border-[#FBC02D] outline-none" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+                <input type="text" placeholder="NAME" className="w-full bg-white/5 border border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-200" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <input type="tel" placeholder="WHATSAPP" className="w-full bg-white/5 border border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-200" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
               </div>
             )}
             <div className="flex justify-between items-end pb-2">

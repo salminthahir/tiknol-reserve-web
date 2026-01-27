@@ -2,7 +2,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
@@ -32,3 +31,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Gagal memproses order tunai" }, { status: 500 });
   }
 }
+export const runtime = 'nodejs';

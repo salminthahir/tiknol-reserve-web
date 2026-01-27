@@ -1,9 +1,10 @@
-// app/api/tokenizer/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma"; 
 import { snap } from "@/lib/midtrans";
+import { customAlphabet } from 'nanoid'; // Import customAlphabet
 
-export const runtime = 'edge';
+// Buat generator ID dengan alphabet huruf besar (A-Z) dan angka (0-9)
+const generateOrderId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 15);
 
 export async function POST(request: Request) {
   try {
@@ -15,9 +16,13 @@ export async function POST(request: Request) {
       return acc + (item.price * item.qty);
     }, 0);
 
+    // --- Buat Order ID Custom (15 karakter, huruf besar & angka) ---
+    const customOrderId = generateOrderId(); // Contoh: A1B2C3D4E5F6G7H
+
     // 2. Buat Order Baru di Database
     const newOrder = await prisma.order.create({
       data: {
+        id: customOrderId, // Gunakan ID custom yang dibuat
         customerName,
         whatsapp,
         totalAmount: calculatedTotal, // Gunakan hasil hitungan backend
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
         id: String(item.id),
         price: item.price,
         quantity: item.qty,
-        name: item.name,
+        name: `${item.name}${item.custom ? ` (${item.custom.temp}/${item.custom.size})` : ''}`,
       })),
       customer_details: {
         first_name: customerName,
@@ -69,3 +74,4 @@ export async function POST(request: Request) {
     );
   }
 }
+export const runtime = 'nodejs';

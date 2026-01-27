@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = 'edge';
 
 export async function POST(request: Request) {
   try {
@@ -18,4 +17,4 @@ export async function POST(request: Request) {
     console.error("Gagal update status:", error);
     return NextResponse.json({ error: "Gagal update status" }, { status: 500 });
   }
-}
+}export const runtime = 'nodejs';

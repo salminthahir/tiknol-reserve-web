@@ -11,7 +11,8 @@ datasource db {
 
 // 2. Model Order (CUMA BOLEH ADA SATU)
 model Order {
-  id           String   @id @default(cuid()) // ID Unik (misal: cmkp...)
+  id           String   @id
+ // ID Unik (misal: cmkp...)
   
   // Data Customer
   customerName String

@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Order, OrderItem } from '@/types/order'; // Import tipe data Order
+import { sendWhatsAppNotification } from '@/lib/whatsapp'; // Import fungsi notifikasi
+
+// Base URL aplikasi untuk URL tiket
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
 
 // 1. Setup Supabase Client (Client Side)
 const supabase = createClient(
@@ -40,6 +44,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    console.log("AdminDashboard: Initializing useEffect for orders and Supabase Realtime.");
     // 1. Ambil data awal
     fetchOrders();
 
@@ -47,27 +52,33 @@ export default function AdminDashboard() {
     const channel = supabase
       .channel('realtime-admin-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Order' }, (payload) => {
-        console.log('🔔 Perubahan terdeteksi, mengambil data baru...', payload);
+        console.log('🔔 Supabase Realtime: Perubahan terdeteksi!', payload);
         fetchOrders(); // Panggil ulang fetchOrders setiap ada perubahan
       })
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log('Admin dashboard terhubung ke Live Monitor!');
-        }
-         if (status === 'CHANNEL_ERROR') {
+        } else if (status === 'CHANNEL_ERROR') {
           console.error('Koneksi Live Monitor gagal:', err);
+        } else {
+          console.log('Admin dashboard Live Monitor status:', status);
         }
       });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { 
+      console.log("AdminDashboard: Cleaning up Supabase Realtime channel.");
+      supabase.removeChannel(channel); 
+    };
   }, []);
   
   const updateStatus = async (id: string, newStatus: Order['status']) => {
+    const orderToUpdate = orders.find(order => order.id === id);
+    if (!orderToUpdate) return;
+
     // 1. Optimistic Update
     setOrders((prevOrders: Order[]) => 
       prevOrders.map((order: Order) => {
         if (order.id === id) {
-          // Opsi A: Tetap tampilkan tapi transparant (Seperti sekarang)
           return { ...order, status: newStatus }; 
         }
         return order;
@@ -81,6 +92,27 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: newStatus }),
       });
+
+      // 3. KIRIM NOTIFIKASI WHATSAPP
+      let notificationMessage = '';
+      const ticketUrl = `${APP_BASE_URL}/ticket/${orderToUpdate.id}`;
+
+      if (newStatus === 'PREPARING') {
+        notificationMessage = `👨‍🍳 Halo ${orderToUpdate.customerName}! Pesanan *Titiknol Reserve* Anda (${orderToUpdate.id}) sedang kami SIAPKAN dengan cinta. Mohon tunggu sebentar yaa! 🙏 Cek update terbaru: ${ticketUrl}`;
+      } else if (newStatus === 'COMPLETED') {
+        notificationMessage = `✅ Halo ${orderToUpdate.customerName}! Kabar gembira! Pesanan *Titiknol Reserve* Anda (${orderToUpdate.id}) sudah SELESAI dan siap diambil/disajikan! 🥳 Sampai jumpa di Titiknol! ${ticketUrl}`;
+      }
+
+      if (notificationMessage) {
+        await sendWhatsAppNotification({
+          customerName: orderToUpdate.customerName,
+          whatsapp: orderToUpdate.whatsapp,
+          orderId: orderToUpdate.id,
+          status: newStatus,
+          message: notificationMessage
+        });
+      }
+
     } catch (error) {
       console.error("Gagal update status:", error);
       alert("Gagal update status, memuat ulang data.");
@@ -124,9 +156,17 @@ export default function AdminDashboard() {
                <div>
                  <p className="text-xs font-bold text-gray-400 uppercase mb-2">Items</p>
                  <ul className="text-sm space-y-1">
-                   {order.items.map((item: OrderItem, i: number) => ( // Gunakan tipe OrderItem
-                     <li key={i} className="flex justify-between border-b border-dashed border-gray-300 pb-1">
-                       <span>{item.qty}x {item.name}</span>
+                   {order.items.map((item: any, i: number) => ( 
+                     <li key={i} className="flex flex-col border-b border-dashed border-gray-300 pb-1">
+                       <div className="flex justify-between font-bold">
+                         <span>{item.qty}x {item.name}</span>
+                       </div>
+                       {item.custom && (
+                         <div className="flex gap-2 mt-0.5">
+                            <span className="text-[10px] bg-black text-white px-1.5 rounded">{item.custom.temp}</span>
+                            <span className="text-[10px] bg-gray-200 text-black px-1.5 rounded">{item.custom.size}</span>
+                         </div>
+                       )}
                      </li>
                    ))}
                  </ul>

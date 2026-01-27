@@ -93,7 +93,7 @@ export default function CheckoutButton({ items, total, customerName, whatsapp, d
           : 'bg-[#E64A19] text-white hover:bg-white hover:text-[#E64A19] border-2 border-transparent hover:border-[#E64A19]'
         }`}
     >
-      {loading ? "MEMPROSES..." : `PAY NOW • Rp ${total.toLocaleString('id-ID')}`}
+      {loading ? "MEMPROSES..." : "PAY NOW"}
     </button>
   );
 }
