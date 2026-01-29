@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; 
+import { prisma } from "@/lib/prisma";
 import { snap } from "@/lib/midtrans";
 import { customAlphabet } from 'nanoid'; // Import customAlphabet
 
@@ -11,42 +11,62 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerName, whatsapp, items } = body; 
+    const { customerName, whatsapp, items, orderType, voucherId, subtotal, discountAmount } = body;
 
-    // --- PERBAIKAN: Hitung totalAmount di backend agar lebih aman ---
+    // Calculate totalAmount from items
     const calculatedTotal = items.reduce((acc: number, item: any) => {
       return acc + (item.price * item.qty);
     }, 0);
 
-    // --- Buat Order ID Custom (15 karakter, huruf besar & angka) ---
-    const customOrderId = generateOrderId(); // Contoh: A1B2C3D4E5F6G7H
+    // Use provided subtotal/discount if voucher applied, otherwise use calculated total
+    const finalSubtotal = subtotal || calculatedTotal;
+    const finalDiscount = discountAmount || 0;
+    const finalTotal = finalSubtotal - finalDiscount;
 
-    // 2. Buat Order Baru di Database
+    // Generate custom Order ID
+    const customOrderId = generateOrderId();
+
+    // Create Order in Database
     const newOrder = await prisma.order.create({
       data: {
-        id: customOrderId, // Gunakan ID custom yang dibuat
+        id: customOrderId,
         customerName,
         whatsapp,
-        totalAmount: calculatedTotal, // Gunakan hasil hitungan backend
-        items: items, 
+        orderType: orderType || 'DINE_IN',
+        totalAmount: finalTotal,
+        subtotal: finalSubtotal,
+        discountAmount: finalDiscount,
+        items: items,
         status: "PENDING",
-        paymentType: "QRIS", // Tambahkan paymentType untuk Midtrans
+        paymentType: "QRIS",
+        voucherId: voucherId || null,
       },
     });
 
-    // 3. Siapkan Parameter Midtrans
+    // Prepare Midtrans Parameters
+    const itemDetails = items.map((item: any) => ({
+      id: String(item.id),
+      price: item.price,
+      quantity: item.qty,
+      name: `${item.name}${item.custom ? ` (${item.custom.temp}/${item.custom.size})` : ''}`,
+    }));
+
+    // Add discount as negative line item if voucher applied
+    if (finalDiscount > 0) {
+      itemDetails.push({
+        id: 'DISCOUNT',
+        price: -finalDiscount,
+        quantity: 1,
+        name: `Voucher Discount (${voucherId})`,
+      });
+    }
+
     const parameter = {
       transaction_details: {
-        // Gunakan ID dari database dan total yang sudah dihitung
-        order_id: String(newOrder.id), 
-        gross_amount: calculatedTotal,
+        order_id: String(newOrder.id),
+        gross_amount: finalTotal,
       },
-      item_details: items.map((item: any) => ({
-        id: String(item.id),
-        price: item.price,
-        quantity: item.qty,
-        name: `${item.name}${item.custom ? ` (${item.custom.temp}/${item.custom.size})` : ''}`,
-      })),
+      item_details: itemDetails,
       customer_details: {
         first_name: customerName,
         phone: whatsapp,
@@ -63,15 +83,15 @@ export async function POST(request: Request) {
     });
 
     // 6. Return
-    return NextResponse.json({ 
+    return NextResponse.json({
       token: transaction.token,
-      orderId: newOrder.id 
+      orderId: newOrder.id
     });
 
   } catch (error: any) {
     console.error("Error creating transaction:", error);
     return NextResponse.json(
-      { error: "Gagal memproses order", details: error.message }, 
+      { error: "Gagal memproses order", details: error.message },
       { status: 500 }
     );
   }

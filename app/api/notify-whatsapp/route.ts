@@ -4,8 +4,7 @@ import { NextResponse } from "next/server";
 const FONNTE_API_TOKEN = process.env.FONNTE_API_TOKEN;
 const FONNTE_API_URL = "https://api.fonnte.com/send";
 
-// Pastikan hanya ada satu deklarasi runtime dan dengan kutip
-export const runtime = 'nodejs'; 
+export const runtime = 'nodejs'; // Menggunakan Node.js runtime karena FormData dan beberapa modul mungkin lebih stabil di sini
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +32,7 @@ export async function POST(request: Request) {
 
     const response = await fetch(FONNTE_API_URL, {
         method: "POST",
-        mode: "cors", 
+        mode: "cors", // Ditambahkan kembali sesuai referensi Anda
         headers: new Headers({
             Authorization: FONNTE_API_TOKEN,
         }),
@@ -42,11 +41,12 @@ export async function POST(request: Request) {
 
     const res = await response.json();
 
-    if (response.ok && res.status === true) { 
+    if (response.ok && res.status === true) { // Asumsi Fonnet mengembalikan {status: true} untuk sukses
       console.log("Fonnet API Response (Success):", res);
       return NextResponse.json({ success: true, message: "Notification sent successfully via Fonnet API." });
     } else {
       console.error("Fonnet API Response (Error):", res);
+      // Log response.status untuk melihat status HTTP dari Fonnet
       return NextResponse.json({ success: false, error: res.reason || `Failed to send notification via Fonnet API. Fonnet HTTP Status: ${response.status}.` }, { status: 500 });
     }
 

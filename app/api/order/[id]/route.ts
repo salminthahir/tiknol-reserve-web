@@ -13,7 +13,8 @@ type Context = {
 
 export async function GET(request: Request, context: Context) {
   try {
-    const { id } = context.params;
+    const params = await context.params; // await params
+    const { id } = params;
 
     const order = await prisma.order.findUnique({
       where: { id },

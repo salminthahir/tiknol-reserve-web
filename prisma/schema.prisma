@@ -19,8 +19,11 @@ model Order {
   whatsapp     String
   
   // Data Transaksi
-  totalAmount  Int
+  subtotal     Int?     // Before discount (optional for backward compatibility)
+  discountAmount Int    @default(0) // Discount from voucher
+  totalAmount  Int      // After discount
   items        Json     // Menyimpan detail menu (nama, qty, harga)
+  orderType    String   @default("DINE_IN") // Values: "DINE_IN", "TAKE_AWAY"
   
   // Status Pembayaran & Dapur
   // Values: "PENDING", "PAID", "PREPARING", "READY", "COMPLETED", "FAILED"
@@ -31,6 +34,10 @@ model Order {
 
   orderSource  String  @default("WEB_CUSTOMER") // Values: "WEB_CUSTOMER", "CASHIER_POS"
   paymentType  String // "CASH", "QRIS", "DEBIT"
+  
+  // Voucher relation
+  voucherId    String?
+  voucher      Voucher? @relation(fields: [voucherId], references: [id])
   
   // Waktu
   createdAt    DateTime @default(now())
@@ -48,4 +55,52 @@ model Product {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Shift {
+  id           String    @id @default(cuid())
+  cashierName  String
+  startTime    DateTime  @default(now())
+  endTime      DateTime? 
+  
+  startCash    Int       @default(0) // Modal Awal
+  expectedCash Int?      // Hitungan Sistem (Start + Sales)
+  actualCash   Int?      // Uang Fisik saat closing
+  difference   Int?      // Selisih (Actual - Expected)
+  
+  status       String    @default("OPEN") // OPEN, CLOSED
+  
+  // Relasi ke Order (Opsional, jika ingin track order masuk shift mana)
+  // Untuk fase ini, kita pakai filter by time range saja biar simpel
+}
+
+// 4. Model Voucher (Sistem Diskon/Promosi)
+model Voucher {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  name            String
+  description     String?
+  type            VoucherType
+  value           Float       // Percentage (0-100) or Fixed Amount
+  minPurchase     Float       @default(0)
+  maxDiscount     Float?      // For percentage type
+  usageLimit      Int?        // Total usage limit
+  usageCount      Int         @default(0)
+  perUserLimit    Int?        // Per customer limit
+  validFrom       DateTime
+  validUntil      DateTime
+  active          Boolean     @default(true)
+  applicableItems Json?       // Array of menu item IDs (optional)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  orders          Order[]
+}
+
+enum VoucherType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_ITEM
+  BUY_X_GET_Y
 }
