@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Clock, Layers } from 'lucide-react';
 import { Voucher, VoucherType } from '@/types/voucher';
 
 interface VoucherFormModalProps {
@@ -28,8 +28,13 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
     perUserLimit: '',
     validFrom: '',
     validUntil: '',
-    active: true
+    active: true,
+    applicableCategories: [] as string[],
+    happyHourStart: '',
+    happyHourEnd: ''
   });
+
+  const categories = ['COFFEE', 'NON-COFFEE', 'SNACK', 'FOOD', 'DESSERT']; // Pre-defined for quick select
 
   useEffect(() => {
     if (voucher) {
@@ -45,7 +50,10 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         perUserLimit: voucher.perUserLimit?.toString() || '',
         validFrom: voucher.validFrom.split('T')[0],
         validUntil: voucher.validUntil.split('T')[0],
-        active: voucher.active
+        active: voucher.active,
+        applicableCategories: Array.isArray(voucher.applicableCategories) ? voucher.applicableCategories as string[] : [],
+        happyHourStart: voucher.happyHourStart || '',
+        happyHourEnd: voucher.happyHourEnd || ''
       });
     } else {
       // Reset form for new voucher
@@ -65,7 +73,10 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         perUserLimit: '',
         validFrom: today,
         validUntil: nextMonth.toISOString().split('T')[0],
-        active: true
+        active: true,
+        applicableCategories: [],
+        happyHourStart: '',
+        happyHourEnd: ''
       });
     }
   }, [voucher, isOpen]);
@@ -88,13 +99,16 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         perUserLimit: formData.perUserLimit ? parseInt(formData.perUserLimit) : null,
         validFrom: new Date(formData.validFrom).toISOString(),
         validUntil: new Date(formData.validUntil).toISOString(),
-        active: formData.active
+        active: formData.active,
+        applicableCategories: formData.applicableCategories,
+        happyHourStart: formData.happyHourStart || null,
+        happyHourEnd: formData.happyHourEnd || null
       };
 
-      const url = voucher 
+      const url = voucher
         ? `/api/admin/vouchers/${voucher.id}`
         : '/api/admin/vouchers';
-      
+
       const method = voucher ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -131,7 +145,7 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_8px_32px_rgba(0,0,0,0.16)] border-2 border-gray-200">
-        
+
         {/* Header - Fixed */}
         <div className="bg-gradient-to-r from-[#552CB7] to-[#6B3FD9] px-4 sm:px-6 py-4 rounded-t-2xl flex justify-between items-center border-b-2 border-black flex-shrink-0">
           <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
@@ -156,7 +170,7 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
+
               {/* Code */}
               <div className="sm:col-span-2">
                 <label className="block text-xs font-black text-gray-600 mb-2 uppercase tracking-wider">
@@ -346,9 +360,81 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
                 />
               </div>
 
+              {/* Divider */}
+              <div className="sm:col-span-2 border-t-2 border-dashed border-gray-300 my-2"></div>
+
+              {/* Advanced Promotional Rules (Phase 4) */}
+              <div className="sm:col-span-2">
+                <h3 className="text-sm font-black text-[#552CB7] uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Sparkles size={18} />
+                  Advanced Promotional Rules
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-[#552CB7]/5 border-2 border-[#552CB7]/20 rounded-2xl">
+                  {/* Applicable Categories */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-600 mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Layers size={14} />
+                      Kategori Berlaku
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            const newCats = formData.applicableCategories.includes(cat)
+                              ? formData.applicableCategories.filter(c => c !== cat)
+                              : [...formData.applicableCategories, cat];
+                            setFormData({ ...formData, applicableCategories: newCats });
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${
+                            formData.applicableCategories.includes(cat)
+                              ? 'bg-[#552CB7] text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]'
+                              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2 font-bold italic">* Kosongkan untuk semua kategori</p>
+                  </div>
+
+                  {/* Happy Hour */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-600 mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Clock size={14} />
+                      Happy Hour (Jam)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 mb-1">DARI</p>
+                        <input
+                          type="time"
+                          value={formData.happyHourStart}
+                          onChange={(e) => setFormData({ ...formData, happyHourStart: e.target.value })}
+                          className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#552CB7] font-bold text-sm"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 mb-1">SAMPAI</p>
+                        <input
+                          type="time"
+                          value={formData.happyHourEnd}
+                          onChange={(e) => setFormData({ ...formData, happyHourEnd: e.target.value })}
+                          className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#552CB7] font-bold text-sm"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2 font-bold italic">* Kosongkan untuk berlaku sepanjang hari</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Active Status */}
               <div className="sm:col-span-2 pt-2">
-                <label className="flex items-center gap-3 cursor-pointer p-4 bg-gray-50 rounded-xl border-2 border-gray-300 hover:border-[#552CB7] transition-all">
+                <label className="flex items-center gap-3 cursor-pointer p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-[#552CB7] transition-all">
                   <input
                     type="checkbox"
                     checked={formData.active}

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Plus, Filter, Search, Edit, Trash2, Copy, X, Scissors } from 'lucide-react';
 import { Voucher } from '@/types/voucher';
 import VoucherFormModal from '@/app/components/VoucherFormModal';
+import VoucherAnalytics from '@/app/components/VoucherAnalytics';
+import VoucherSkeleton from '@/app/components/skeletons/VoucherSkeleton';
 
 export default function VouchersPage() {
     const [vouchers, setVouchers] = useState<Voucher[]>([]);
@@ -144,14 +146,7 @@ export default function VouchersPage() {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-[#FFF8E7] via-[#FFF5DC] to-[#F5F0E8] p-6 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-[#552CB7] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="font-black text-xl text-gray-800">Loading vouchers...</p>
-                </div>
-            </div>
-        );
+        return <VoucherSkeleton />;
     }
 
     return (
@@ -186,6 +181,9 @@ export default function VouchersPage() {
                 </div>
             </div>
 
+            {/* Analytics Dashboard */}
+            <VoucherAnalytics />
+
             {/* Search & Filter Bar */}
             <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_6px_16px_rgba(0,0,0,0.06)] border-2 border-gray-200 p-4 mb-4">
                 <div className="flex flex-col lg:flex-row gap-3">
@@ -214,8 +212,8 @@ export default function VouchersPage() {
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all ${showFilters
-                                ? 'bg-[#552CB7] text-white border-[#552CB7] shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-[#552CB7]'
+                            ? 'bg-[#552CB7] text-white border-[#552CB7] shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#552CB7]'
                             }`}
                     >
                         <Filter size={18} />

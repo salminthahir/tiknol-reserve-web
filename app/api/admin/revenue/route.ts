@@ -8,12 +8,12 @@ export async function GET(request: Request) {
         const startDateParam = searchParams.get('startDate');
         const endDateParam = searchParams.get('endDate');
 
-        // Default: Hari ini
+        // Default: Hari ini (Logic: Use param if exists, else Default Today 00:00 - 23:59)
         let startDate = startDateParam ? new Date(startDateParam) : new Date();
-        startDate.setHours(0, 0, 0, 0);
+        if (!startDateParam) startDate.setHours(0, 0, 0, 0);
 
         let endDate = endDateParam ? new Date(endDateParam) : new Date();
-        endDate.setHours(23, 59, 59, 999);
+        if (!endDateParam) endDate.setHours(23, 59, 59, 999);
 
         console.log(`📊 Generating Revenue Data: ${startDate.toISOString()} - ${endDate.toISOString()}`);
 
@@ -42,44 +42,64 @@ export async function GET(request: Request) {
         const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
         // 2. Chart Data (GroupBy Date/Hour)
-        // Utk simpel, kita group by Date dulu. Kalau rentang cuma 1 hari, group by Hour.
         const isSingleDay = startDate.toDateString() === endDate.toDateString();
-
-        // Gunakan Map untuk grouping
         const salesMap = new Map<string, { value: number, dateStr: string }>();
 
+        // PRE-FILL BUCKETS (Agar graph tidak bolong/kosong)
+        if (isSingleDay) {
+            // Fill 00:00 - 23:00
+            for (let i = 0; i < 24; i++) {
+                const hourKey = `${i.toString().padStart(2, '0')}:00`;
+                const d = new Date(startDate);
+                d.setHours(i, 0, 0, 0);
+                salesMap.set(hourKey, { value: 0, dateStr: d.toISOString() });
+            }
+        } else {
+            // Fill Each Date in Range
+            let curr = new Date(startDate);
+            // Safety limit to avoid infinite loop if dates wrong
+            const limit = new Date(endDate);
+            limit.setDate(limit.getDate() + 1); // include end date safety
+
+            while (curr <= endDate) {
+                const dayKey = curr.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                // Use ISO String YYYY-MM-DD for consistency
+                salesMap.set(dayKey, { value: 0, dateStr: curr.toISOString().split('T')[0] });
+
+                // Next day
+                curr.setDate(curr.getDate() + 1);
+            }
+        }
+
+        // MERGE DATA
         orders.forEach(order => {
             let key = '';
-            let dateStr = ''; // ISO Date string (YYYY-MM-DD) or similar for querying later
+            let dateStr = '';
 
             const orderDate = new Date(order.createdAt);
 
             if (isSingleDay) {
-                // Format Jam: "14:00"
                 key = `${orderDate.getHours().toString().padStart(2, '0')}:00`;
                 dateStr = orderDate.toISOString();
             } else {
-                // Format Tanggal: "28 Jan"
                 key = orderDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-                // FIX: Ensure dateStr matches the Key's day (Local Time)
-                // toLocaleDateString returning "YYYY-MM-DD" format for uniformity
-                // Hack: We want YYYY-MM-DD that represents the Local ID Date.
-                // Since we don't know server TZ for sure, best effort: match parts.
-                const year = orderDate.getFullYear();
-                const month = String(orderDate.getMonth() + 1).padStart(2, '0');
-                const day = String(orderDate.getDate()).padStart(2, '0');
-                dateStr = `${year}-${month}-${day}`;
-                // NOTE: calculate this based on local parts derived from orderDate (which follows local TZ of server)
+                dateStr = orderDate.toISOString().split('T')[0];
             }
 
-            const current = salesMap.get(key) || { value: 0, dateStr };
-            salesMap.set(key, { value: current.value + order.totalAmount, dateStr });
+            const current = salesMap.get(key);
+            if (current) {
+                salesMap.set(key, { value: current.value + order.totalAmount, dateStr: current.dateStr });
+            } else {
+                salesMap.set(key, { value: order.totalAmount, dateStr });
+            }
         });
 
-        // Konversi Map ke Array, sort by key (secara kasar)
+        // Konversi Map ke Array
         const chartData = Array.from(salesMap.entries())
-            .map(([name, data]) => ({ name, value: data.value, date: data.dateStr }))
-            .reverse(); // Krn order desc, kita reverse biar dari pagi -> malam
+            .map(([name, data]) => ({ name, value: data.value, date: data.dateStr }));
+        // Removed reverse() because pre-fill ensures chronological order
+
+
 
         // 3. Payment Method Split
         // Hitung frekuensi payment type

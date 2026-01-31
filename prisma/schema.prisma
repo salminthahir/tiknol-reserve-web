@@ -52,6 +52,10 @@ model Product {
   image       String?  // URL gambar dari Supabase Storage
   category    String   // Misal: "Coffee", "Non-Coffee", "Snack"
   isAvailable Boolean  @default(true) // Buat switch On/Off stok habis
+  
+  // Customization Config
+  hasCustomization     Boolean @default(false)
+  customizationOptions Json?   // { temps: ['ICE', 'HOT'], sizes: ['REGULAR', 'MEDIUM', 'LARGE'] }
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -90,7 +94,10 @@ model Voucher {
   validFrom       DateTime
   validUntil      DateTime
   active          Boolean     @default(true)
-  applicableItems Json?       // Array of menu item IDs (optional)
+  applicableItems     Json?       // Array of menu item IDs (optional)
+  applicableCategories Json?      // Array of category names (optional)
+  happyHourStart      String?     // e.g., "14:00"
+  happyHourEnd        String?     // e.g., "17:00"
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   
@@ -103,4 +110,60 @@ enum VoucherType {
   FIXED_AMOUNT
   FREE_ITEM
   BUY_X_GET_Y
+}
+
+// 5. Model Karyawan (Attendance System)
+model Employee {
+  id            String       @id // Manual Sequential ID: EMP-XXX
+  name          String
+  whatsapp      String       @unique
+  pin           String?      // Optional 4-digit PIN for extra security
+  role          EmployeeRole @default(STAFF)
+  deviceId      String?      // Stored device fingerprint
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  attendances   Attendance[]
+}
+
+model Attendance {
+  id            String           @id @default(cuid())
+  employeeId    String
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  type          AttendanceType   // CLOCK_IN or CLOCK_OUT
+  timestamp     DateTime         @default(now()) // Server time, NOT client time
+  photoUrl      String?          // Supabase storage URL
+  latitude      Float?
+  longitude     Float?
+  deviceId      String?          // Device fingerprint at time of punch
+  status        AttendanceStatus @default(PENDING)
+  notes         String?          // Admin notes for corrections
+  createdAt     DateTime         @default(now())
+}
+
+enum EmployeeRole {
+  STAFF
+  MANAGER
+  ADMIN
+}
+
+enum AttendanceType {
+  CLOCK_IN
+  CLOCK_OUT
+}
+
+enum AttendanceStatus {
+  PENDING    // Waiting for admin review (if anomaly detected)
+  APPROVED
+  REJECTED
+  CORRECTED  // Admin made manual adjustment
+}
+
+// 6. Model Settings (Config)
+model Settings {
+  id              String   @id @default(cuid())
+  officeLatitude  Float    @default(0) // Latitude Kantor
+  officeLongitude Float    @default(0) // Longitude Kantor
+  maxRadius       Float    @default(100) // Radius Absen (meter)
+  updatedAt       DateTime @updatedAt
 }

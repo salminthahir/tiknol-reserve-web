@@ -1,20 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import Script from 'next/script';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { Trash2, X, ShoppingBag, Ticket, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ShoppingBag, Trash2, X, Plus, Minus, CreditCard, Banknote, Ticket, ChevronDown, ChevronUp } from 'lucide-react';
 import PosSkeleton from '@/app/components/skeletons/PosSkeleton';
-
-// --- DEKLARASI GLOBAL TYPE ---
-// Agar TypeScript mengenali window.snap dari Midtrans
-declare global {
-  interface Window {
-    snap: any;
-  }
-}
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- TIPE DATA ---
 type Product = {
@@ -24,9 +17,20 @@ type Product = {
   category: string;
   isAvailable: boolean;
   image: string;
+  hasCustomization?: boolean;
+  customizationOptions?: {
+    temps: string[];
+    sizes: string[];
+  };
 };
 
-type CartItem = Product & { qty: number };
+type CartItem = Product & {
+  qty: number;
+  selectedTemp?: string; // Menyimpan temp yang dipilih (e.g., "ICE")
+  selectedSize?: string; // Menyimpan size yang dipilih (e.g., "REGULAR")
+};
+
+
 
 export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -45,19 +49,27 @@ export default function POSPage() {
   // STATE BARU: Order Type (DINE_IN atau TAKE_AWAY)
   const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKE_AWAY'>('DINE_IN');
 
+  // STATE BARU: Confirmation Modal
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; type: 'CASH' | 'ONLINE' | null }>({ open: false, type: null });
+
+  // STATE BARU: Customization In-Context (Card Overlay)
+  const [activeCustomization, setActiveCustomization] = useState<{
+    productId: string | null;
+    temp: string | null;
+    size: string | null;
+  }>({ productId: null, temp: null, size: null });
+
   // STATE VOUCHER: Voucher system
   const [voucherCode, setVoucherCode] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<any>(null);
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [voucherError, setVoucherError] = useState<string | null>(null);
-  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
   const [isVoucherExpanded, setIsVoucherExpanded] = useState(false);
-
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
 
   // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
-      setIsLoading(true);
       try {
         const res = await fetch('/api/admin/products');
         if (!res.ok) throw new Error(`Status ${res.status}`);
@@ -79,18 +91,74 @@ export default function POSPage() {
 
 
   // --- LOGIC CART ---
-  const addToCart = (product: Product) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+  const addToCart = (product: Product, customization?: { temp: string | null, size: string | null }) => {
+    // If product has customization and no customization provided
+    if (product.hasCustomization && !customization) {
+
+      // Check if this product is already active, if so, just close it (toggle behavior)
+      if (activeCustomization.productId === product.id) {
+        setActiveCustomization({ productId: null, temp: null, size: null });
+        return;
       }
-      return [...prev, { ...product, qty: 1 }];
+
+      // Initialize defaults
+      const availableTemps = product.customizationOptions?.temps || ['ICE', 'HOT'];
+      const availableSizes = product.customizationOptions?.sizes || ['REGULAR'];
+
+      const defaultTemp = availableTemps.length > 0 ? availableTemps[0] : null;
+      const defaultSize = availableSizes.length > 0 ? availableSizes[0] : 'REGULAR';
+
+      setActiveCustomization({
+        productId: product.id,
+        temp: defaultTemp,
+        size: defaultSize
+      });
+      return;
+    }
+
+    // Add to cart logic
+    setCart((prev) => {
+      // Unique key for cart item based on ID + Customizations
+      const isMatch = (item: CartItem) =>
+        item.id === product.id &&
+        item.selectedTemp === (customization?.temp || undefined) &&
+        item.selectedSize === (customization?.size || undefined);
+
+      const existing = prev.find(isMatch);
+
+      if (existing) {
+        return prev.map((item) => isMatch(item) ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, {
+        ...product,
+        qty: 1,
+        selectedTemp: customization?.temp || undefined,
+        selectedSize: customization?.size || undefined
+      }];
+    });
+
+    // Reset active customization after adding
+    if (activeCustomization.productId === product.id) {
+      setActiveCustomization({ productId: null, temp: null, size: null });
+    }
+  };
+
+  const confirmCustomization = (product: Product) => {
+    if (activeCustomization.productId !== product.id) return;
+
+    addToCart(product, {
+      temp: activeCustomization.temp,
+      size: activeCustomization.size || 'REGULAR'
     });
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.map((item) => item.id === productId ? { ...item, qty: item.qty - 1 } : item).filter((item) => item.qty > 0));
+  const removeFromCart = (productId: string, temp?: string, size?: string) => {
+    setCart((prev) => prev.map((item) => {
+      if (item.id === productId && item.selectedTemp === temp && item.selectedSize === size) {
+        return { ...item, qty: item.qty - 1 };
+      }
+      return item;
+    }).filter((item) => item.qty > 0));
   };
 
   const clearCart = () => { // FUNGSI BARU: Hapus semua isi keranjang
@@ -164,9 +232,10 @@ export default function POSPage() {
   };
 
   // --- LOGIC PEMBAYARAN ---
-  const handlePayment = async () => {
+  const processOnlinePayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
+    setConfirmModal({ open: false, type: null }); // Close modal
 
     try {
       const orderPayload = {
@@ -175,7 +244,7 @@ export default function POSPage() {
         orderType: orderType,
         items: cart.map((item) => ({
           id: item.id,
-          name: item.name,
+          name: item.name + (item.selectedTemp || item.selectedSize ? ` (${[item.selectedTemp, item.selectedSize].filter(Boolean).join('/')})` : ''),
           price: item.price,
           qty: item.qty,
         })),
@@ -235,9 +304,10 @@ export default function POSPage() {
     }
   };
 
-  const handleCashPayment = async () => {
+  const processCashPayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
+    setConfirmModal({ open: false, type: null }); // Close modal
 
     try {
       const orderData = {
@@ -246,7 +316,7 @@ export default function POSPage() {
         orderType: orderType,
         items: cart.map(item => ({
           id: item.id,
-          name: item.name,
+          name: item.name + (item.selectedTemp || item.selectedSize ? ` (${[item.selectedTemp, item.selectedSize].filter(Boolean).join('/')})` : ''),
           price: item.price,
           qty: item.qty,
         })),
@@ -282,6 +352,13 @@ export default function POSPage() {
       alert(`Pembayaran tunai gagal: ${err.message || 'Terjadi kesalahan'}`);
       setIsProcessingPayment(false);
     }
+
+  };
+
+  // Helper untuk trigger modal
+  const initiatePayment = (type: 'CASH' | 'ONLINE') => {
+    if (cart.length === 0) return alert("Keranjang kosong!");
+    setConfirmModal({ open: true, type });
   };
 
   // --- FILTERING ---
@@ -409,45 +486,146 @@ export default function POSPage() {
                 <p className="font-black text-xl animate-pulse tracking-widest">LOADING...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 lg:gap-3">
-                {filteredProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    onClick={() => addToCart(product)}
-                    className="
-                      group relative bg-white border-2 border-black rounded-xl cursor-pointer 
-                      transition-all duration-300
-                      hover:-translate-y-1 hover:shadow-[4px_4px_0px_#552CB7]
-                      active:translate-y-0 active:shadow-none active:scale-95
-                      shadow-[2px_2px_0px_black]
-                      overflow-hidden
-                      flex flex-col
-                    "
-                  >
-                    {/* Image Container - Floating */}
-                    <div className="h-24 lg:h-32 w-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden relative shrink-0">
-                      <Image
-                        src={product.image || '/placeholder.svg'}
-                        alt={product.name}
-                        fill
-                        sizes="(max-width: 768px) 33vw, 20vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                      {/* Price Badge - Floating with Glow */}
-                      <div className="absolute top-2 right-2 bg-[#FD5A46] text-white border-none px-3 py-1.5 rounded-xl font-bold text-xs shadow-[0_4px_12px_rgba(253,90,70,0.5),0_2px_4px_rgba(0,0,0,0.2),0_0_20px_rgba(253,90,70,0.3)] group-hover:shadow-[0_6px_16px_rgba(253,90,70,0.6),0_0_24px_rgba(253,90,70,0.4)] transition-shadow">
-                        {(product.price / 1000)}K
-                      </div>
-                    </div>
+              <motion.div
+                layout
+                className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 lg:gap-3 grid-flow-dense auto-rows-min"
+              >
+                <AnimatePresence>
+                  {filteredProducts.map((product) => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      className={`
+                        group relative bg-white border-2 border-black rounded-xl cursor-pointer
+                        shadow-[2px_2px_0px_black]
+                        overflow-hidden
+                        ${activeCustomization.productId === product.id
+                          ? 'col-span-2 z-10 shadow-[8px_8px_0px_black] -translate-y-1'
+                          : 'hover:-translate-y-1 hover:shadow-[4px_4px_0px_#552CB7] active:translate-y-0 active:shadow-none active:scale-95'}
+                      `}
+                    >
+                      {/* Active State (Horizontal Layout) */}
+                      {activeCustomization.productId === product.id ? (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.15 }} // Faster content fade-in
+                          className="flex h-full w-full bg-white relative"
+                        >
+                          {/* Close Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCustomization({ productId: null, temp: null, size: null });
+                            }}
+                            className="absolute top-2 right-2 bg-white/80 hover:bg-white border-2 border-black p-1 rounded-full text-black z-50 hover:scale-110 transition-transform shadow-sm"
+                          >
+                            <X size={16} />
+                          </button>
 
-                    {/* Content - Compact */}
-                    <div className="p-2.5 flex flex-col items-center text-center gap-1 flex-1 justify-center">
-                      <h3 className="font-black text-[10px] lg:text-xs leading-tight uppercase line-clamp-2 text-black w-full">
-                        {product.name}
-                      </h3>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                          {/* Left: Image (40%) */}
+                          <div className="w-[40%] relative shrink-0 border-r-2 border-black bg-gray-50">
+                            <Image
+                              src={product.image || '/placeholder.svg'}
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                            />
+                            <div className="absolute top-2 left-2 bg-[#FD5A46] text-white px-2 py-0.5 rounded text-[10px] font-black shadow-sm">
+                              {(product.price / 1000)}K
+                            </div>
+                          </div>
+
+                          {/* Right: Customization (60%) */}
+                          <div className="flex-1 p-3 flex flex-col justify-between" onClick={(e) => e.stopPropagation()}>
+                            <div className="space-y-3 overflow-y-auto">
+                              <h3 className="font-black text-sm uppercase leading-tight line-clamp-2">{product.name}</h3>
+
+                              {/* Options Grid */}
+                              <div className="space-y-2">
+                                {/* TEMP & SIZE Combined Grid */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  {/* Temp Options */}
+                                  {product.customizationOptions?.temps?.map(t => {
+                                    const isIce = t === 'ICE';
+                                    const isHot = t === 'HOT';
+                                    const isSelected = activeCustomization.temp === t;
+
+                                    let baseColor = "bg-white text-black border-black hover:bg-gray-50";
+                                    if (isSelected) {
+                                      if (isIce) baseColor = "bg-[#E0F7FA] text-[#006064] border-[#006064] shadow-[2px_2px_0px_#006064]";
+                                      else if (isHot) baseColor = "bg-[#FFEBEE] text-[#B71C1C] border-[#B71C1C] shadow-[2px_2px_0px_#B71C1C]";
+                                      else baseColor = "bg-black text-white border-black shadow-[2px_2px_0px_#552CB7]";
+                                    } else {
+                                      if (isIce) baseColor = "bg-white text-[#00838F] border-[#00838F] hover:bg-[#E0F7FA]";
+                                      else if (isHot) baseColor = "bg-white text-[#D32F2F] border-[#D32F2F] hover:bg-[#FFEBEE]";
+                                    }
+
+                                    return (
+                                      <button
+                                        key={t}
+                                        onClick={() => setActiveCustomization(prev => ({ ...prev, temp: t }))}
+                                        className={`py-2 text-[10px] font-black uppercase border-2 rounded-md transition-all flex items-center justify-center gap-1 ${baseColor}`}
+                                      >
+                                        {isIce && <span>❄️</span>}
+                                        {isHot && <span>🔥</span>}
+                                        {t}
+                                      </button>
+                                    );
+                                  })}
+                                  {/* Size Options */}
+                                  {product.customizationOptions?.sizes?.map(s => (
+                                    <button
+                                      key={s}
+                                      onClick={() => setActiveCustomization(prev => ({ ...prev, size: s }))}
+                                      className={`py-2 text-[10px] font-black uppercase border-2 border-black rounded-md transition-colors ${activeCustomization.size === s ? 'bg-[#FFC567] shadow-[2px_2px_0px_black]' : 'bg-white hover:bg-gray-50'}`}
+                                    >
+                                      {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => confirmCustomization(product)}
+                              className="w-full bg-[#00995E] text-white py-2.5 mt-2 text-xs font-black uppercase rounded-lg border-2 border-black shadow-[2px_2px_0px_black] active:shadow-none active:translate-y-[2px] hover:brightness-110 transition-all"
+                            >
+                              ADD +
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        /* Inactive State (Standard Vertical) */
+                        <div className="flex flex-col h-full">
+                          <div className="h-24 lg:h-32 w-full bg-gray-50 relative shrink-0 border-b-2 border-black/5">
+                            <Image
+                              src={product.image || '/placeholder.svg'}
+                              alt={product.name}
+                              fill
+                              sizes="(max-width: 768px) 33vw, 20vw"
+                              className="object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                            <div className="absolute top-2 right-2 bg-[#FD5A46] text-white px-2 py-1 rounded-lg font-bold text-[10px] shadow-sm">
+                              {(product.price / 1000)}K
+                            </div>
+                          </div>
+                          <div className="p-2 flex items-center justify-center flex-1">
+                            <h3 className="font-black text-[10px] lg:text-xs leading-tight uppercase text-center line-clamp-2">
+                              {product.name}
+                            </h3>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             )}
           </div>
         </div >
@@ -562,7 +740,14 @@ export default function POSPage() {
 
                 <div className="flex-1 flex flex-col justify-between">
                   <div className="flex justify-between items-start">
-                    <h4 className="font-black text-sm uppercase leading-tight line-clamp-1">{item.name}</h4>
+                    <div className="flex flex-col">
+                      <h4 className="font-black text-sm uppercase leading-tight line-clamp-1">{item.name}</h4>
+                      {(item.selectedTemp || item.selectedSize) && (
+                        <span className="text-[10px] font-bold text-[#552CB7] mt-0.5">
+                          {[item.selectedTemp, item.selectedSize].filter(Boolean).join(' - ')}
+                        </span>
+                      )}
+                    </div>
                     <span className="font-bold text-sm">{(item.price * item.qty).toLocaleString()}</span>
                   </div>
 
@@ -571,9 +756,9 @@ export default function POSPage() {
 
                     {/* Qty Controls */}
                     <div className="flex items-center gap-1">
-                      <button onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }} className="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-[#FD5A46] hover:text-white border border-black rounded font-black text-sm transition-colors">-</button>
+                      <button onClick={(e) => { e.stopPropagation(); removeFromCart(item.id, item.selectedTemp, item.selectedSize); }} className="w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-[#FD5A46] hover:text-white border border-black rounded font-black text-sm transition-colors">-</button>
                       <span className="w-6 text-center font-black text-sm">{item.qty}</span>
-                      <button onClick={(e) => { e.stopPropagation(); addToCart(item); }} className="w-6 h-6 flex items-center justify-center bg-black text-white hover:bg-[#00995E] border border-black rounded font-black text-sm transition-colors">+</button>
+                      <button onClick={(e) => { e.stopPropagation(); addToCart(item, { temp: item.selectedTemp || null, size: item.selectedSize || null }); }} className="w-6 h-6 flex items-center justify-center bg-black text-white hover:bg-[#00995E] border border-black rounded font-black text-sm transition-colors">+</button>
                     </div>
                   </div>
                 </div>
@@ -718,14 +903,14 @@ export default function POSPage() {
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
-                onClick={handleCashPayment}
+                onClick={() => initiatePayment('CASH')}
                 disabled={isProcessingPayment || cart.length === 0}
                 className="py-4 font-black bg-white text-black border border-white/20 shadow-[0_4px_12px_rgba(255,255,255,0.2)] active:scale-95 transition-all disabled:opacity-50 text-sm hover:shadow-[0_6px_16px_rgba(255,255,255,0.3)] rounded-xl"
               >
                 CASH
               </button>
               <button
-                onClick={handlePayment}
+                onClick={() => initiatePayment('ONLINE')}
                 disabled={isProcessingPayment || cart.length === 0}
                 className="py-4 font-black bg-gradient-to-r from-[#00995E] to-[#00B870] text-white border border-white/20 shadow-[0_4px_12px_rgba(0,153,94,0.4)] active:scale-95 transition-all disabled:opacity-50 text-sm hover:shadow-[0_6px_16px_rgba(0,153,94,0.5)] rounded-xl flex flex-col items-center justify-center leading-none gap-1"
               >
@@ -736,6 +921,71 @@ export default function POSPage() {
           </div>
         </div>
       </div >
+
+      {/* CONFIRMATION MODAL */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border-4 border-black shadow-[12px_12px_0px_black] w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+
+            {/* Header */}
+            <div className="bg-black text-white p-4 flex justify-between items-center">
+              <h3 className="font-black text-lg uppercase tracking-wider italic">KONFIRMASI</h3>
+              <button
+                onClick={() => setConfirmModal({ open: false, type: null })}
+                className="text-white hover:text-[#FD5A46] transition-colors"
+              >
+                <X size={24} strokeWidth={3} />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col items-center text-center gap-6">
+
+              {/* Icon & Type */}
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 border-black shadow-[4px_4px_0px_black] ${confirmModal.type === 'CASH' ? 'bg-[#00995E] text-white' : 'bg-[#552CB7] text-white'}`}>
+                  {confirmModal.type === 'CASH' ? <Banknote size={40} strokeWidth={2.5} /> : <CreditCard size={40} strokeWidth={2.5} />}
+                </div>
+                <div
+                  className="font-black text-2xl uppercase mt-2 text-black tracking-wide"
+                >
+                  {confirmModal.type === 'CASH' ? 'TUNAI' : 'QRIS / DEBIT'}
+                </div>
+              </div>
+
+              {/* Amount Display */}
+              <div className="w-full bg-gray-100 border-2 border-black p-3 rounded-xl relative">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Total Tagihan</p>
+                <p className="text-3xl font-black text-black tracking-tight">Rp {finalTotal.toLocaleString()}</p>
+                <div className="absolute top-1/2 left-0 -translate-x-1/2 w-4 h-4 bg-white border-2 border-black rounded-full"></div>
+                <div className="absolute top-1/2 right-0 translate-x-1/2 w-4 h-4 bg-white border-2 border-black rounded-full"></div>
+              </div>
+
+              <p className="font-bold text-gray-700 text-sm px-4 leading-relaxed">
+                Pastikan nominal pembayaran dan metode yang dipilih sudah sesuai.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => setConfirmModal({ open: false, type: null })}
+                  className="py-3.5 font-black bg-white text-black border-2 border-black shadow-[4px_4px_0px_black] hover:translate-y-0.5 hover:shadow-[2px_2px_0px_black] active:translate-y-1 active:shadow-none transition-all uppercase text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirmModal.type === 'CASH') processCashPayment();
+                    else processOnlinePayment();
+                  }}
+                  className="py-3.5 font-black bg-[#FFC567] text-black border-2 border-black shadow-[4px_4px_0px_black] hover:bg-[#FFD188] hover:translate-y-0.5 hover:shadow-[2px_2px_0px_black] active:translate-y-1 active:shadow-none transition-all uppercase text-sm flex gap-2 items-center justify-center"
+                >
+                  Ya, Lanjut
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -12,15 +12,15 @@ export async function GET() {
     return NextResponse.json(products);
   } catch (error: any) {
     // FIX: Log error sebagai string untuk menghindari TypeError jika error-nya null
-    console.error("Error fetching products:", String(error)); 
+    console.error("Error fetching products:", String(error));
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     return NextResponse.json(
-      { 
+      {
         error: "Gagal mengambil data menu.",
         details: errorMessage
-      }, 
+      },
       { status: 500 }
     );
   }
@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    
+
     // Validasi sederhana
     if (!body.name || !body.price) {
       return NextResponse.json({ error: "Nama dan Harga wajib diisi" }, { status: 400 });
@@ -44,6 +44,8 @@ export async function POST(request: Request) {
         image: body.image || "",
         description: body.description || "",
         isAvailable: true,
+        hasCustomization: body.hasCustomization || false,
+        customizationOptions: body.customizationOptions || null,
       },
     });
 

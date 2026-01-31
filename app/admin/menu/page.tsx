@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link'; // Untuk Navigasi
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Search, Plus, Upload, Trash2, Edit2, LayoutGrid, List as ListIcon, Loader2, X, Check, Save } from 'lucide-react';
 
 type Product = {
   id: string;
@@ -10,58 +12,47 @@ type Product = {
   category: string;
   isAvailable: boolean;
   image: string;
+  hasCustomization?: boolean;
+  customizationOptions?: {
+    temps: string[];
+    sizes: string[];
+  };
 };
-
-// --- DATA MENU STATIS UNTUK MIGRASI ---
-const STATIC_SEED_DATA = [
-  // --- KATEGORI: COFFEE ---
-  { category: 'COFFEE', name: 'TIKNOL KOPI', price: 20000, description: 'Signature coffee blend. Creamy, bold, and distinct.', image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'AMERICANO', price: 20000, description: 'Espresso shot dengan air mineral. Tersedia panas/dingin.', image: 'https://images.unsplash.com/photo-1551030173-122f523535c3?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'KOPI AREN', price: 20000, description: 'Kopi susu dengan gula aren asli yang legit.', image: 'https://images.unsplash.com/photo-1461023058943-48dbf13994c6?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'COCONUT KOPI', price: 20000, description: 'Perpaduan kopi dengan rasa kelapa yang gurih dan segar.', image: 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'KLEPON KOPI', price: 20000, description: 'Rasa jajanan pasar Klepon (Pandan & Kelapa) dalam kopi.', image: 'https://images.unsplash.com/photo-1626500145961-d7790b4d4586?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'CARAMEL MACHIATO', price: 20000, description: 'Espresso, vanilla, steamed milk, dan drizzle caramel.', image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'HAZELNUT KOPI', price: 20000, description: 'Kopi susu dengan aroma kacang Hazelnut yang wangi.', image: 'https://images.unsplash.com/photo-1632054010678-7f2e5a1a7355?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'VANILLA KOPI', price: 20000, description: 'Klasik kopi susu dengan sirup Vanilla yang lembut.', image: 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'CAPPUCINO', price: 20000, description: 'Espresso dengan foam susu tebal. Tersedia Panas/Dingin.', image: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'V60 MANUAL BREW', price: 20000, description: 'Seduhan manual pour-over. Tanya barista untuk beans.', image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=800&q=80' },
-  { category: 'COFFEE', name: 'TITIK LITERAN', price: 115000, description: 'Kopi botolan 1 Liter untuk stok di rumah/kantor.', image: 'https://images.unsplash.com/photo-1606791405555-41c36b745421?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'MATCHA', price: 20000, description: 'Green tea Jepang creamy. Tersedia Panas/Dingin.', image: 'https://images.unsplash.com/photo-1515823662972-da6a2e4d3002?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'RED VELVET', price: 20000, description: 'Rasa kue Red Velvet dalam bentuk minuman.', image: 'https://images.unsplash.com/photo-1566318956977-3e6f66293427?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'TARO MILK', price: 20000, description: 'Minuman rasa ubi ungu yang manis, gurih, dan milky.', image: 'https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'COKLAT MILK', price: 20000, description: 'Susu coklat klasik yang rich. Comfort drink terbaik.', image: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'TIKNOL SODA', price: 20000, description: 'Minuman soda segar racikan spesial Titik Nol.', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'STROBERI TEA', price: 20000, description: 'Teh rasa stroberi yang asam manis menyegarkan.', image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'LEMON TEA', price: 20000, description: 'Teh dengan perasan lemon asli. Vitamin C booster.', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=800&q=80' },
-  { category: 'NON-COFFEE', name: 'TIKNOL CURAH', price: 20000, description: 'Minuman botolan praktis siap minum.', image: 'https://images.unsplash.com/photo-1625244515599-4d6cb4b21644?auto=format&fit=crop&w=800&q=80' },
-  { category: 'MEALS', name: 'NASI CKN TERIYAKI', price: 23000, description: 'Nasi dengan ayam saus Teriyaki jepang yang manis gurih.', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=800&q=80' },
-  { category: 'MEALS', name: 'NASGOR TIKNOL', price: 23000, description: 'Nasi goreng spesial bumbu rahasia dapur Titik Nol.', image: 'https://images.unsplash.com/photo-1603133872878-684f208fb74b?auto=format&fit=crop&w=800&q=80' },
-  { category: 'MEALS', name: 'NASGOR S. ROA', price: 23000, description: 'Nasi goreng pedas dengan aroma khas ikan asap Sambal Roa.', image: 'https://images.unsplash.com/photo-1636136701831-7b0292500d0f?auto=format&fit=crop&w=800&q=80' },
-  { category: 'MEALS', name: 'SATE TAICHAN', price: 23000, description: 'Sate ayam daging putih dengan sambal pedas nampol.', image: 'https://images.unsplash.com/photo-1529563021898-1d1565e38fa9?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'INDOMIE GORENG', price: 13000, description: 'Indomie goreng perfectly al dente + Telur.', image: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'INDOMIE KUAH', price: 13000, description: 'Indomie rebus hangat dengan sayur dan telur.', image: 'https://images.unsplash.com/photo-1596450531557-4d7a8bffa931?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'NASI PUTIH', price: 5000, description: 'Nasi putih hangat tambahan.', image: 'https://images.unsplash.com/photo-1576449177114-19280a58145b?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'TAHU WALIK', price: 18000, description: 'Tahu goreng dibalik dengan isian aci daging yang kenyal.', image: 'https://images.unsplash.com/photo-1630402773295-d6d7b420f18c?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'KENTANG GORENG', price: 18000, description: 'Classic french fries. Gurih dan renyah.', image: 'https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'PIS-GOR S. ROA', price: 23000, description: 'Pisang goreng cocol sambal roa, kombinasi unik Manado.', image: 'https://images.unsplash.com/photo-1628325852553-61b474cc0419?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'CHEESE ROLL', price: 13000, description: 'Keju lumer dibalut kulit lumpia renyah.', image: 'https://images.unsplash.com/photo-1600492080034-7299a9103e5c?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'CHURROS', price: 13000, description: 'Donat spanyol dengan taburan gula kayu manis & saus coklat.', image: 'https://images.unsplash.com/photo-1624371414361-e670edf4898d?auto=format&fit=crop&w=800&q=80' },
-  { category: 'SNACK', name: 'DONAT KENTANG', price: 18000, description: '2 pcs Donat kentang klasik yang empuk.', image: 'https://images.unsplash.com/photo-1527515545081-75a45e197b06?auto=format&fit=crop&w=800&q=80' },
-];
 
 export default function MenuManagerPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State Modal & Form
+  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
+
+  // Search & Filter
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('ALL');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState({
-    id: '', name: '', price: '', category: 'COFFEE', image: ''
-  });
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. FETCH DATA (Ambil dari Database saat halaman dibuka)
+  // Image Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Form Data
+  const [formData, setFormData] = useState({
+    id: '',
+    name: '',
+    price: '',
+    category: 'COFFEE',
+    image: '',
+    hasCustomization: false,
+    customizationOptions: {
+      temps: ['ICE', 'HOT'],
+      sizes: ['REGULAR', 'MEDIUM', 'LARGE']
+    }
+  });
+
+  // --- FETCH DATA ---
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -70,84 +61,117 @@ export default function MenuManagerPage() {
     setIsLoading(true);
     try {
       const res = await fetch('/api/admin/products');
-      
-      if (!res.ok) {
-        // Jika status HTTP bukan 2xx, lempar error
-        throw new Error(`Gagal mengambil data: Status ${res.status}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setProducts(data);
       }
-
-      const data = await res.json();
-
-      // Pastikan data adalah array sebelum di-set
-      if (Array.isArray(data)) {
-        setProducts(data);
-      } else {
-        // Jika data bukan array (misal: objek error dari API)
-        console.error("Data yang diterima bukan array:", data);
-        throw new Error("Format data tidak sesuai.");
-      }
-
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      alert(`Terjadi kesalahan: ${error.message}`);
-      setProducts([]); // Kosongkan produk agar tidak crash
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 2. HANDLE SAVE (Kirim ke Database)
+  // --- IMAGE UPLOAD HANDLER ---
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("File size too large (Max 2MB)");
+      return;
+    }
+
+    setIsUploading(true);
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadData
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({ ...prev, image: data.url }));
+        setUploadPreview(data.url); // Show new image immediately
+      } else {
+        const err = await res.json();
+        alert(`Upload failed: ${err.error}`);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("Upload failed due to network error.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // --- CRUD HANDLERS ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setIsSubmitting(true);
+
     try {
+      const payload = { ...formData, price: Number(formData.price) };
       let res;
+
       if (editMode) {
-        // Update Menu
         res = await fetch('/api/admin/products', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, price: Number(formData.price) }),
+          body: JSON.stringify(payload),
         });
       } else {
-        // Buat Menu Baru
         res = await fetch('/api/admin/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, price: Number(formData.price) }),
+          body: JSON.stringify(payload),
         });
       }
 
       if (res.ok) {
-        alert(editMode ? "Menu berhasil diupdate!" : "Menu berhasil ditambahkan!");
-        fetchProducts(); // Refresh tabel
+        const savedProduct = await res.json();
+        if (editMode) {
+          setProducts(prev => prev.map(p => p.id === formData.id ? { ...savedProduct, isAvailable: p.isAvailable } : p));
+        } else {
+          setProducts(prev => [savedProduct, ...prev]);
+        }
         setIsModalOpen(false);
       } else {
-        const errorData = await res.json();
-        alert(`Gagal menyimpan menu: ${errorData.error}`);
+        alert("Failed to save product.");
       }
     } catch (error) {
       console.error(error);
-      alert("Terjadi kesalahan saat menyimpan menu.");
+      alert("Error saving product.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // 3. HANDLE DELETE & TOGGLE
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin hapus menu ini?')) return;
-    await fetch('/api/admin/products', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    fetchProducts();
+    if (!confirm('Are you sure you want to delete this item?')) return;
+
+    // Optimistic
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    try {
+      await fetch('/api/admin/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch (error) {
+      fetchProducts(); // Revert
+      alert("Failed to delete.");
+    }
   };
 
   const toggleAvailability = async (product: Product) => {
-    // Optimistic Update (Biar cepat di UI)
+    // Optimistic
     setProducts(prev => prev.map(p => p.id === product.id ? { ...p, isAvailable: !p.isAvailable } : p));
-    
-    // Kirim ke Server
+
     await fetch('/api/admin/products', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -155,7 +179,6 @@ export default function MenuManagerPage() {
     });
   };
 
-  // Helper buka modal
   const handleOpenModal = (product?: Product) => {
     if (product) {
       setEditMode(true);
@@ -164,163 +187,360 @@ export default function MenuManagerPage() {
         name: product.name,
         price: product.price.toString(),
         category: product.category,
-        image: product.image || ''
+        image: product.image || '',
+        hasCustomization: product.hasCustomization || false,
+        customizationOptions: product.customizationOptions || { temps: ['ICE', 'HOT'], sizes: ['REGULAR'] }
       });
+      setUploadPreview(product.image || null);
     } else {
       setEditMode(false);
-      setFormData({ id: '', name: '', price: '', category: 'COFFEE', image: '' });
+      setFormData({
+        id: '',
+        name: '',
+        price: '',
+        category: 'COFFEE',
+        image: '',
+        hasCustomization: false,
+        customizationOptions: { temps: ['ICE', 'HOT'], sizes: ['REGULAR'] }
+      });
+      setUploadPreview(null);
     }
     setIsModalOpen(true);
   };
 
-  // 4. FUNGSI SEMENTARA UNTUK MIGRASI DATA
-  const handleSeedDatabase = async () => {
-    if (!confirm('Ini akan menambahkan 30+ item menu ke database. Lanjutkan?')) return;
-
-    setIsSeeding(true);
-    let successCount = 0;
-    let failCount = 0;
-
-    // Cek dulu produk yang sudah ada agar tidak duplikat
-    const existingNames = new Set(products.map(p => p.name.toUpperCase()));
-
-    const newItems = STATIC_SEED_DATA.filter(item => !existingNames.has(item.name.toUpperCase()));
-
-    if (newItems.length === 0) {
-      alert("Semua menu dari data statis sepertinya sudah ada di database. Tidak ada yang ditambahkan.");
-      setIsSeeding(false);
-      return;
-    }
-
-    await Promise.all(newItems.map(async (item) => {
-      try {
-        const res = await fetch('/api/admin/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: item.name,
-            price: item.price,
-            category: item.category,
-            image: item.image,
-            description: item.description || "",
-          }),
-        });
-        if (res.ok) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch (error) {
-        failCount++;
-        console.error("Gagal mengirim item:", item.name, error);
-      }
-    }));
-
-    alert(`Proses Selesai!\n\nBerhasil ditambahkan: ${successCount} menu.\nGagal: ${failCount} menu.\n\nMemuat ulang daftar menu...`);
-    fetchProducts();
-    setIsSeeding(false);
-  };
+  // --- FILTERING ---
+  const categories = ['ALL', 'COFFEE', 'NON-COFFEE', 'SNACK', 'MEALS'];
+  const filteredProducts = products.filter(p => {
+    const matchCat = activeCategory === 'ALL' || p.category === activeCategory;
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] text-black font-sans p-8">
-      {/* NAVIGASI SEDERHANA */}
-      <div className="flex gap-4 mb-8 border-b-2 border-gray-300 pb-4">
-         <Link href="/admin/dashboard" className="font-bold hover:underline">← BACK TO DASHBOARD</Link>
-         <span className="text-gray-400">|</span>
-         <Link href="/admin/pos" className="font-bold text-[#FBC02D] hover:underline">OPEN POS SYSTEM →</Link>
-      </div>
-
-      <div className="flex justify-between items-end mb-8">
+    <div className="min-h-screen bg-[#F5F5F5] font-sans text-black p-4 lg:p-8">
+      {/* HEADER */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-8 gap-4 border-b-4 border-black pb-6">
         <div>
-          <h1 className="text-5xl font-black italic tracking-tighter uppercase mb-2">
-            MENU <span className="bg-[#FBC02D] px-2">MANAGER</span>
+          <div className="flex gap-2 mb-2 text-xs font-bold text-gray-400">
+            <Link href="/admin/dashboard" className="hover:text-black hover:underline">DASHBOARD</Link>
+            <span>/</span>
+            <span className="text-black">MENU MANAGER</span>
+          </div>
+          <h1 className="text-4xl lg:text-6xl font-black italic uppercase tracking-tighter">
+            MENU <span className="bg-[#FBC02D] px-2 text-black">MANAGER</span>
           </h1>
-          <p className="font-bold text-gray-500 font-mono">DATABASE PUSAT KONTROL PRODUK</p>
+          <p className="font-bold text-gray-500 mt-2">Manage your products, prices, and availability.</p>
         </div>
-        <div className="flex gap-4">
-          <button 
-             onClick={handleSeedDatabase} 
-             disabled={isSeeding}
-             className="bg-red-500 text-white px-8 py-4 font-black uppercase text-lg border-2 border-transparent hover:bg-white hover:text-red-500 hover:border-red-500 shadow-[6px_6px_0px_0px_black] active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-           >
-             {isSeeding ? 'MIGRASI DATA...' : 'MIGRASI MENU LAMA'}
-           </button>
-          <button onClick={() => handleOpenModal()} className="bg-black text-white px-8 py-4 font-black uppercase text-lg border-2 border-transparent hover:bg-white hover:text-black hover:border-black shadow-[6px_6px_0px_0px_black] active:shadow-none transition-all">
-            + ADD NEW ITEM
+
+        <div className="flex flex-col gap-2 w-full lg:w-auto">
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-black text-white px-6 py-3 font-black uppercase text-base lg:text-lg border-2 border-transparent hover:bg-white hover:text-black hover:border-black shadow-[4px_4px_0px_0px_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
+          >
+            <Plus size={24} /> ADD NEW ITEM
           </button>
+          <div className="flex bg-white border-2 border-black p-1 gap-1 w-full lg:w-auto">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search menu..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-2 py-2 text-sm font-bold focus:outline-none placeholder:font-medium"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="text-center font-bold text-2xl animate-pulse">LOADING DATABASE...</div>
-      ) : (
-        <div className="overflow-x-auto border-4 border-black bg-white shadow-[8px_8px_0px_0px_black]">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-black text-white uppercase text-sm tracking-widest border-b-4 border-black">
-                <th className="p-4 border-r-2 border-white/20">Status</th>
-                <th className="p-4 border-r-2 border-white/20">Item Name</th>
-                <th className="p-4 border-r-2 border-white/20">Category</th>
-                <th className="p-4 border-r-2 border-white/20 text-right">Price</th>
-                <th className="p-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="font-bold">
-              {products.map((product) => (
-                <tr key={product.id} className="border-b-2 border-black hover:bg-yellow-50 transition-colors">
-                  <td className="p-4 border-r-2 border-black w-[100px]">
-                    <button 
-                      onClick={() => toggleAvailability(product)}
-                      className={`w-full py-1 text-xs font-black uppercase border-2 border-black transition-all ${product.isAvailable ? 'bg-[#00E676] text-black shadow-[2px_2px_0px_0px_black]' : 'bg-red-500 text-white opacity-50'}`}
-                    >
-                      {product.isAvailable ? 'READY' : 'EMPTY'}
-                    </button>
-                  </td>
-                  <td className="p-4 border-r-2 border-black uppercase text-lg">{product.name}</td>
-                  <td className="p-4 border-r-2 border-black"><span className="bg-gray-200 px-2 py-1 text-xs border border-black">{product.category}</span></td>
-                  <td className="p-4 border-r-2 border-black text-right font-mono">{product.price.toLocaleString()}</td>
-                  <td className="p-4 text-center flex justify-center gap-2">
-                    <button onClick={() => handleOpenModal(product)} className="w-8 h-8 bg-white border-2 border-black flex items-center justify-center hover:bg-[#FBC02D]">✎</button>
-                    <button onClick={() => handleDelete(product.id)} className="w-8 h-8 bg-white border-2 border-black flex items-center justify-center hover:bg-red-500 hover:text-white">✕</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* FILTER TABS */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-4 py-2 font-black text-xs uppercase border-2 transition-all rounded-full ${activeCategory === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black hover:text-black'}`}
+          >
+            {cat}
+          </button>
+        ))}
+        <div className="ml-auto flex gap-1 bg-white border border-gray-300 rounded p-1">
+          <button onClick={() => setViewMode('GRID')} className={`p-1.5 rounded ${viewMode === 'GRID' ? 'bg-gray-200 text-black' : 'text-gray-400'}`}><LayoutGrid size={16} /></button>
+          <button onClick={() => setViewMode('LIST')} className={`p-1.5 rounded ${viewMode === 'LIST' ? 'bg-gray-200 text-black' : 'text-gray-400'}`}><ListIcon size={16} /></button>
         </div>
+      </div>
+
+      {/* CONTENT AREA */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Loader2 className="animate-spin" size={48} />
+          <p className="font-black animate-pulse">LOADING DATABASE...</p>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 font-bold text-gray-500 text-sm">SHOWING {filteredProducts.length} ITEMS</div>
+
+          {viewMode === 'GRID' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredProducts.map(product => (
+                <div key={product.id} className="bg-white border-4 border-black group relative shadow-[6px_6px_0px_0px_#333] hover:-translate-y-1 transition-transform">
+                  {/* Available Toggle Badge */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleAvailability(product); }}
+                    className={`absolute top-3 right-3 z-10 px-3 py-1 font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_black] transition-all ${product.isAvailable ? 'bg-[#00E676] text-black' : 'bg-red-500 text-white'}`}
+                  >
+                    {product.isAvailable ? 'READY' : 'SOLD OUT'}
+                  </button>
+
+                  <div className="aspect-square bg-gray-100 border-b-4 border-black relative overflow-hidden flex items-center justify-center">
+                    {product.image ? (
+                      <Image src={product.image} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <span className="text-gray-300 font-black text-4xl">IMG</span>
+                    )}
+                  </div>
+
+                  <div className="p-4">
+                    <span className="inline-block bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 font-bold mb-2 uppercase">{product.category}</span>
+                    <h3 className="font-black text-lg uppercase leading-tight mb-1 line-clamp-2 min-h-[3rem]">{product.name}</h3>
+                    <div className="flex justify-between items-center mt-3 border-t-2 border-dashed border-gray-200 pt-3">
+                      <span className="font-mono font-bold text-lg">Rp {product.price.toLocaleString()}</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleOpenModal(product)} className="p-2 bg-black text-white hover:bg-[#FBC02D] hover:text-black transition-colors rounded">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(product.id)} className="p-2 bg-gray-100 text-black hover:bg-red-600 hover:text-white transition-colors rounded">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#333] overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-black text-white border-b-4 border-black uppercase text-xs font-black">
+                  <tr>
+                    <th className="p-4 w-16">IMG</th>
+                    <th className="p-4">Name</th>
+                    <th className="p-4">Category</th>
+                    <th className="p-4 text-right">Price</th>
+                    <th className="p-4 text-center">Status</th>
+                    <th className="p-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-2 divide-gray-100 font-bold text-sm">
+                  {filteredProducts.map(product => (
+                    <tr key={product.id} className="hover:bg-yellow-50 transition-colors odd:bg-white even:bg-gray-50 border-b border-gray-100">
+                      <td className="p-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded border border-black overflow-hidden relative">
+                          {product.image && <Image src={product.image} alt="" fill className="object-cover" />}
+                        </div>
+                      </td>
+                      <td className="p-4 uppercase">{product.name}</td>
+                      <td className="p-4"><span className="bg-gray-100 px-2 py-1 text-xs text-gray-500 rounded">{product.category}</span></td>
+                      <td className="p-4 text-right font-mono">Rp {product.price.toLocaleString()}</td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => toggleAvailability(product)}
+                          className={`px-3 py-1 rounded text-xs font-black ${product.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                        >
+                          {product.isAvailable ? 'ACTIVE' : 'INACTIVE'}
+                        </button>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => handleOpenModal(product)} className="text-blue-600 hover:bg-blue-50 p-1.5 rounded"><Edit2 size={16} /></button>
+                          <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:bg-red-50 p-1.5 rounded"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-20 text-gray-400 font-bold italic">NO ITEMS FOUND</div>
+          )}
+        </>
       )}
 
-      {/* MODAL FORM SAMA SEPERTI SEBELUMNYA (Tapi action formnya pakai handleSave di atas) */}
+      {/* EDIT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-           <div className="bg-white border-4 border-black w-full max-w-lg shadow-[10px_10px_0px_0px_#FBC02D] relative animate-in fade-in zoom-in duration-200">
-             <div className="bg-black text-white p-4 flex justify-between items-center border-b-4 border-black">
-                <h2 className="text-xl font-black uppercase italic">{editMode ? 'EDIT ITEM' : 'NEW ITEM'}</h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-white hover:text-red-500 font-bold text-xl">✕</button>
-             </div>
-             <form onSubmit={handleSave} className="p-6 space-y-4">
-                <div>
-                  <label className="block font-black text-sm uppercase mb-1">Product Name</label>
-                  <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border-2 border-black p-3 font-bold focus:outline-none focus:bg-yellow-100" placeholder="Ex: KOPI SUSU" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-black text-sm uppercase mb-1">Price (IDR)</label>
-                    <input type="number" required value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full border-2 border-black p-3 font-mono focus:outline-none focus:bg-yellow-100" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-2xl border-4 border-black shadow-[12px_12px_0px_black] overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-black text-white p-4 flex justify-between items-center shrink-0">
+              <h2 className="font-black text-xl italic uppercase tracking-wider">{editMode ? 'EDIT PRODUCT' : 'NEW PRODUCT'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="hover:text-[#FBC02D]"><X size={24} /></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <form onSubmit={handleSave} className="space-y-6">
+                <div className="flex flex-col sm:flex-row gap-6">
+                  {/* Image Upload Section */}
+                  <div className="w-full sm:w-1/3 shrink-0">
+                    <label className="block text-xs font-black uppercase mb-2">Product Image</label>
+                    <div
+                      className="border-2 border-dashed border-gray-400 bg-gray-50 aspect-square rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-yellow-50 hover:border-black transition-colors relative overflow-hidden group"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploadPreview ? (
+                        <>
+                          <Image src={uploadPreview} alt="Preview" fill className="object-cover" />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-white font-bold text-xs">CHANGE IMAGE</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="text-gray-400 mb-2" size={32} />
+                          <span className="text-xs font-bold text-gray-400 text-center px-4">CLICK TO UPLOAD</span>
+                        </>
+                      )}
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                          <Loader2 className="animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-2 font-medium text-center">Max size: 2MB. Format: JPG, PNG.</p>
                   </div>
-                  <div>
-                     <label className="block font-black text-sm uppercase mb-1">Category</label>
-                     <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full border-2 border-black p-3 font-bold bg-white">
-                       <option value="COFFEE">COFFEE</option>
-                       <option value="NON-COFFEE">NON-COFFEE</option>
-                       <option value="SNACK">SNACK</option>
-                       <option value="MEALS">MEALS</option>
-                     </select>
+
+                  {/* Main Details */}
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <label className="block text-xs font-black uppercase mb-1">Item Name</label>
+                      <input
+                        required
+                        type="text"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full border-2 border-black rounded p-3 font-bold focus:outline-none focus:shadow-[4px_4px_0px_#FBC02D]"
+                        placeholder="E.g. Iced Americano"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-black uppercase mb-1">Price (IDR)</label>
+                        <input
+                          required
+                          type="number"
+                          value={formData.price}
+                          onChange={e => setFormData({ ...formData, price: e.target.value })}
+                          className="w-full border-2 border-black rounded p-3 font-mono font-bold focus:outline-none focus:shadow-[4px_4px_0px_#FBC02D]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black uppercase mb-1">Category</label>
+                        <select
+                          value={formData.category}
+                          onChange={e => setFormData({ ...formData, category: e.target.value })}
+                          className="w-full border-2 border-black rounded p-3 font-bold bg-white focus:outline-none focus:shadow-[4px_4px_0px_#FBC02D]"
+                        >
+                          {categories.filter(c => c !== 'ALL').map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <button type="submit" className="w-full py-3 mt-4 font-black bg-[#FBC02D] border-2 border-black shadow-[4px_4px_0px_0px_black] active:shadow-none transition-all uppercase">SAVE ITEM</button>
-             </form>
-           </div>
+
+                {/* Customization Toggle */}
+                <div className="pt-4 border-t border-gray-200">
+                  <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:border-black transition-colors">
+                    <div className={`w-5 h-5 border-2 border-black flex items-center justify-center ${formData.hasCustomization ? 'bg-black text-white' : 'bg-white'}`}>
+                      {formData.hasCustomization && <Check size={14} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={formData.hasCustomization}
+                      onChange={e => setFormData({ ...formData, hasCustomization: e.target.checked })}
+                    />
+                    <span className="font-bold text-sm uppercase">Enable Customization (Size/Temp)</span>
+                  </label>
+                  {formData.hasCustomization && (
+                    <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg animate-in slide-in-from-top-2 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Temperature Options */}
+                        <div>
+                          <p className="text-xs font-black uppercase mb-2">Temperature</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['ICE', 'HOT'].map(temp => (
+                              <label key={temp} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border-2 border-black rounded shadow-[2px_2px_0px_black] active:translate-y-0.5 active:shadow-none transition-all">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 accent-black"
+                                  checked={formData.customizationOptions?.temps?.includes(temp) || false}
+                                  onChange={(e) => {
+                                    const currentTemps = formData.customizationOptions?.temps || [];
+                                    const newTemps = e.target.checked
+                                      ? [...currentTemps, temp]
+                                      : currentTemps.filter(t => t !== temp);
+                                    setFormData({
+                                      ...formData,
+                                      customizationOptions: { ...formData.customizationOptions!, temps: newTemps }
+                                    });
+                                  }}
+                                />
+                                <span className="text-xs font-bold">{temp}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Size Options */}
+                        <div>
+                          <p className="text-xs font-black uppercase mb-2">Size</p>
+                          <div className="flex flex-wrap gap-2">
+                            {['REGULAR', 'MEDIUM', 'LARGE'].map(size => (
+                              <label key={size} className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border-2 border-black rounded shadow-[2px_2px_0px_black] active:translate-y-0.5 active:shadow-none transition-all">
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 accent-black"
+                                  checked={formData.customizationOptions?.sizes?.includes(size) || false}
+                                  onChange={(e) => {
+                                    const currentSizes = formData.customizationOptions?.sizes || [];
+                                    const newSizes = e.target.checked
+                                      ? [...currentSizes, size]
+                                      : currentSizes.filter(s => s !== size);
+                                    setFormData({
+                                      ...formData,
+                                      customizationOptions: { ...formData.customizationOptions!, sizes: newSizes }
+                                    });
+                                  }}
+                                />
+                                <span className="text-xs font-bold">{size}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || isUploading}
+                  className="w-full bg-[#00995E] text-white py-4 font-black uppercase tracking-wider text-lg border-2 border-black shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-[#00B870] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={20} /> SAVE PRODUCT</>}
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
     </div>

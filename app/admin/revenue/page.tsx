@@ -77,7 +77,8 @@ export default function RevenuePage() {
                 endDate = e;
             } else {
                 // Overview Mode
-                if (targetFilter === 'TODAY') {
+                if (filter === 'TODAY') {
+                    // Default start is today 00:00
                     startDate.setHours(0, 0, 0, 0);
                 } else if (targetFilter === '7DAYS') {
                     startDate.setDate(now.getDate() - 7);
@@ -171,8 +172,8 @@ export default function RevenuePage() {
                                 key={f}
                                 onClick={() => { setFilter(f); setSelectedDate(null); }}
                                 className={`flex-1 md:flex-none px-4 py-3 font-black text-xs uppercase transition-colors border-r-2 border-black last:border-r-0 ${filter === f
-                                        ? 'bg-black text-[#FFDE59]'
-                                        : 'bg-white hover:bg-orange-200 text-black'
+                                    ? 'bg-black text-[#FFDE59]'
+                                    : 'bg-white hover:bg-orange-200 text-black'
                                     }`}
                             >
                                 {f}

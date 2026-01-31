@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Order } from '@/types/order';
-import { Search, Filter, Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, Calendar, ChevronLeft, ChevronRight, X, Ticket } from 'lucide-react';
 import HistorySkeleton from '@/app/components/skeletons/HistorySkeleton';
 
 export default function POSHistoryPage() {
@@ -225,8 +225,8 @@ export default function POSHistoryPage() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 font-bold text-sm transition-all ${showFilters || activeFiltersCount > 0
-                ? 'bg-[#552CB7] text-white border-[#552CB7] shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-[#552CB7]'
+              ? 'bg-[#552CB7] text-white border-[#552CB7] shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
+              : 'bg-white text-gray-600 border-gray-200 hover:border-[#552CB7]'
               }`}
           >
             <Filter size={18} />
@@ -355,8 +355,8 @@ export default function POSHistoryPage() {
                     <div
                       key={order.id}
                       className={`p-5 transition-colors border-l-4 border-l-[#552CB7] ${idx % 2 === 0
-                          ? 'bg-white hover:bg-gray-50'
-                          : 'bg-gray-50 hover:bg-gray-100'
+                        ? 'bg-white hover:bg-gray-50'
+                        : 'bg-gray-50 hover:bg-gray-100'
                         }`}
                     >
                       <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
@@ -368,21 +368,27 @@ export default function POSHistoryPage() {
                               #{order.id.slice(0, 8).toUpperCase()}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${order.status === 'PAID' || order.status === 'COMPLETED'
-                                ? 'bg-green-100 text-green-700 border-green-300'
-                                : order.status === 'PENDING' || order.status === 'PREPARING' || order.status === 'READY'
-                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                                  : order.status === 'FAILED' || order.status === 'CANCELLED' || order.status === 'EXPIRED'
-                                    ? 'bg-red-100 text-red-700 border-red-300'
-                                    : 'bg-gray-100 text-gray-700 border-gray-300'
+                              ? 'bg-green-100 text-green-700 border-green-300'
+                              : order.status === 'PENDING' || order.status === 'PREPARING' || order.status === 'READY'
+                                ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
+                                : order.status === 'FAILED' || order.status === 'CANCELLED' || order.status === 'EXPIRED'
+                                  ? 'bg-red-100 text-red-700 border-red-300'
+                                  : 'bg-gray-100 text-gray-700 border-gray-300'
                               }`}>
                               {order.status}
                             </span>
                             {(order as any).orderType && (
                               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(order as any).orderType === 'DINE_IN'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-purple-100 text-purple-700'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-purple-100 text-purple-700'
                                 }`}>
                                 {(order as any).orderType === 'DINE_IN' ? 'DINE IN' : 'TAKE AWAY'}
+                              </span>
+                            )}
+                            {order.voucherId && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-300">
+                                <Ticket size={12} />
+                                {(order as any).voucher?.code || 'VOUCHER'}
                               </span>
                             )}
                           </div>
@@ -410,8 +416,20 @@ export default function POSHistoryPage() {
                         </div>
 
                         {/* Right: Total - Swiss Box */}
-                        <div className="lg:text-right bg-white px-4 py-3 rounded-xl border-2 border-gray-200 lg:min-w-[180px]">
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">TOTAL</p>
+                        <div className="lg:text-right bg-white px-4 py-3 rounded-xl border-2 border-gray-200 lg:min-w-[200px] flex flex-col justify-center">
+                          {order.discountAmount > 0 && (
+                            <div className="mb-2 pb-2 border-b border-gray-100 space-y-0.5">
+                              <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase">
+                                <span>Subtotal</span>
+                                <span>Rp {(order.subtotal || (order.totalAmount + order.discountAmount)).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase">
+                                <span>Discount</span>
+                                <span>- Rp {order.discountAmount.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">TOTAL FINAL</p>
                           <p className="text-2xl font-black text-black">
                             Rp {order.totalAmount.toLocaleString()}
                           </p>
@@ -461,8 +479,8 @@ export default function POSHistoryPage() {
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
                       className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${currentPage === pageNum
-                          ? 'bg-[#552CB7] text-white shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
-                          : 'border-2 border-gray-200 hover:border-[#552CB7]'
+                        ? 'bg-[#552CB7] text-white shadow-[0_3px_8px_rgba(85,44,183,0.3)]'
+                        : 'border-2 border-gray-200 hover:border-[#552CB7]'
                         }`}
                     >
                       {pageNum}

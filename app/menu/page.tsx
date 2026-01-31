@@ -16,6 +16,11 @@ type Product = {
   category: string;
   isAvailable: boolean;
   image: string;
+  hasCustomization?: boolean;
+  customizationOptions?: {
+    temps: string[];
+    sizes: string[];
+  };
 };
 
 // Customization Type
@@ -24,16 +29,16 @@ type Customization = {
   size: 'REGULAR' | 'MEDIUM' | 'LARGE';
 };
 
-type CartItem = Product & { 
+type CartItem = Product & {
   qty: number;
   custom?: Customization;
-  uniqueKey: string; 
+  uniqueKey: string;
 };
 
 function MenuContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
@@ -72,18 +77,29 @@ function MenuContent() {
         setIsLoading(false);
       }
     };
+
     if (!orderId) fetchProducts();
   }, [orderId]);
 
   // --- CART LOGIC ---
   const handleAddToCartClick = (product: Product) => {
-    const needsCustomization = product.category.toUpperCase().includes('COFFEE');
-    
+    // Use dynamic customization check from database config
+    const needsCustomization = product.hasCustomization === true;
+
     if (needsCustomization) {
-      setTempCustom({ temp: 'ICE', size: 'REGULAR' });
+      // Set default customization options from product config
+      // Set default customization options from product config
+      // Ensure we pick something that ACTUALLY exists in the options
+      const availableTemps = product.customizationOptions?.temps || ['ICE', 'HOT'];
+      const availableSizes = product.customizationOptions?.sizes || ['REGULAR'];
+
+      const defaultTemp = availableTemps.length > 0 ? availableTemps[0] : 'ICE';
+      const defaultSize = availableSizes.length > 0 ? availableSizes[0] : 'REGULAR';
+
+      setTempCustom({ temp: defaultTemp as 'ICE' | 'HOT', size: defaultSize as any });
       setSelectedProduct(product);
     } else {
-      // Langsung masuk keranjang untuk kategori non-minuman
+      // Langsung masuk keranjang untuk kategori non-customizable
       const uniqueKey = `${product.id}-standard`;
       setCart((prev) => {
         const existing = prev.find((item) => item.uniqueKey === uniqueKey);
@@ -92,7 +108,7 @@ function MenuContent() {
         }
         return [...prev, { ...product, qty: 1, uniqueKey }];
       });
-      if(cart.length === 0) setIsCartOpen(true);
+      if (cart.length === 0) setIsCartOpen(true);
     }
   };
 
@@ -105,7 +121,7 @@ function MenuContent() {
     setCart((prev) => {
       const existing = prev.find((item) => item.uniqueKey === uniqueKey);
       if (existing) {
-        return prev.map((item) => 
+        return prev.map((item) =>
           item.uniqueKey === uniqueKey ? { ...item, qty: item.qty + 1 } : item
         );
       }
@@ -113,12 +129,12 @@ function MenuContent() {
     });
 
     setSelectedProduct(null);
-    if(cart.length === 0) setIsCartOpen(true);
+    if (cart.length === 0) setIsCartOpen(true);
   };
 
   const updateQty = (uniqueKey: string, delta: number) => {
-    setCart((prev) => 
-      prev.map((item) => 
+    setCart((prev) =>
+      prev.map((item) =>
         item.uniqueKey === uniqueKey ? { ...item, qty: item.qty + delta } : item
       ).filter(item => item.qty > 0)
     );
@@ -183,7 +199,7 @@ function MenuContent() {
           {/* FILTER BAR */}
           <div className="sticky top-20 z-30 bg-[#080808]/95 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative max-w-xs w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={16}/>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={16} />
               <input type="text" placeholder="SEARCH..." className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 text-xs focus:border-[#FBC02D] transition-all text-white placeholder-neutral-600 uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -243,11 +259,17 @@ function MenuContent() {
                   <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Select Temperature</p>
                     <div className="grid grid-cols-2 gap-3">
-                      {(['ICE', 'HOT'] as const).map((t) => (
-                        <button key={t} onClick={() => setTempCustom(prev => ({ ...prev, temp: t }))} className={`py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${tempCustom.temp === t ? 'bg-white text-black border-white' : 'bg-transparent border-white/5 text-neutral-500 hover:border-white/20'}`}>
-                          {t} {tempCustom.temp === t && <Check size={14} />}
-                        </button>
-                      ))}
+                      {(['ICE', 'HOT'] as const).map((t) => {
+                        // FILTER: Only show enabled temps. If undefined, show all (backwards compat)
+                        const isEnabled = selectedProduct?.customizationOptions?.temps?.includes(t) ?? true;
+                        if (!isEnabled) return null;
+
+                        return (
+                          <button key={t} onClick={() => setTempCustom(prev => ({ ...prev, temp: t }))} className={`py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${tempCustom.temp === t ? 'bg-white text-black border-white' : 'bg-transparent border-white/5 text-neutral-500 hover:border-white/20'}`}>
+                            {t} {tempCustom.temp === t && <Check size={14} />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -256,10 +278,10 @@ function MenuContent() {
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Scale Your Caffeine</p>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { 
-                          id: 'REGULAR', 
-                          label: 'REGULAR', 
-                          sub: 'Peanut Size', 
+                        {
+                          id: 'REGULAR',
+                          label: 'REGULAR',
+                          sub: 'Peanut Size',
                           icon: (
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#FBC02D]">
                               <path d="M7 15c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4Z" />
@@ -267,16 +289,16 @@ function MenuContent() {
                             </svg>
                           )
                         },
-                        { 
-                          id: 'MEDIUM', 
-                          label: 'MEDIUM', 
-                          sub: 'Human Size', 
-                          icon: <User size={22} /> 
+                        {
+                          id: 'MEDIUM',
+                          label: 'MEDIUM',
+                          sub: 'Human Size',
+                          icon: <User size={22} />
                         },
-                        { 
-                          id: 'LARGE', 
-                          label: 'LARGE', 
-                          sub: 'Whale Size', 
+                        {
+                          id: 'LARGE',
+                          label: 'LARGE',
+                          sub: 'Whale Size',
                           icon: (
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce-short">
                               <path d="M2 12c0 4.4 3.6 8 8 8h10c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2h-2c-1.1 0-2-.9-2-2V8c0-1.1-.9-2-2-2H6c-2.2 0-4 1.8-4 4v2Z" />
@@ -285,27 +307,33 @@ function MenuContent() {
                             </svg>
                           )
                         }
-                      ].map((s) => (
-                        <button 
-                          key={s.id} 
-                          onClick={() => setTempCustom(prev => ({ ...prev, size: s.id as any }))} 
-                          className={`
+                      ].map((s) => {
+                        // FILTER: Only show enabled sizes. If undefined, show all.
+                        const isEnabled = selectedProduct?.customizationOptions?.sizes?.includes(s.id) ?? true;
+                        if (!isEnabled) return null;
+
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setTempCustom(prev => ({ ...prev, size: s.id as any }))}
+                            className={`
                             py-4 px-1 rounded-2xl border-2 transition-all flex flex-col items-center gap-2
-                            ${tempCustom.size === s.id 
-                              ? 'bg-[#FBC02D] text-black border-[#FBC02D] translate-y-[-6px] shadow-[0_12px_24px_-8px_rgba(251,192,45,0.5)]' 
-                              : 'bg-white/5 border-white/5 text-neutral-500 hover:border-white/10'
-                            }
+                            ${tempCustom.size === s.id
+                                ? 'bg-[#FBC02D] text-black border-[#FBC02D] translate-y-[-6px] shadow-[0_12px_24px_-8px_rgba(251,192,45,0.5)]'
+                                : 'bg-white/5 border-white/5 text-neutral-500 hover:border-white/10'
+                              }
                           `}
-                        >
-                          <div className={`transition-all duration-500 ${tempCustom.size === s.id ? 'scale-150' : 'scale-100 opacity-30'}`}>
-                            {s.icon}
-                          </div>
-                          <div className="text-center mt-1">
-                            <p className="text-[9px] font-black tracking-widest uppercase">{s.label}</p>
-                            <p className={`text-[7px] font-medium opacity-60 italic ${tempCustom.size === s.id ? 'text-black' : ''}`}>{s.sub}</p>
-                          </div>
-                        </button>
-                      ))}
+                          >
+                            <div className={`transition-all duration-500 ${tempCustom.size === s.id ? 'scale-150' : 'scale-100 opacity-30'}`}>
+                              {s.icon}
+                            </div>
+                            <div className="text-center mt-1">
+                              <p className="text-[9px] font-black tracking-widest uppercase">{s.label}</p>
+                              <p className={`text-[7px] font-medium opacity-60 italic ${tempCustom.size === s.id ? 'text-black' : ''}`}>{s.sub}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

@@ -17,7 +17,10 @@ export interface Voucher {
     validFrom: string;
     validUntil: string;
     active: boolean;
-    applicableItems: number[] | null;
+    applicableItems: string[] | null;
+    applicableCategories: string[] | null;
+    happyHourStart: string | null;
+    happyHourEnd: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -42,5 +45,8 @@ export interface CreateVoucherInput {
     validFrom: Date;
     validUntil: Date;
     active?: boolean;
-    applicableItems?: number[];
+    applicableItems?: string[];
+    applicableCategories?: string[];
+    happyHourStart?: string;
+    happyHourEnd?: string;
 }

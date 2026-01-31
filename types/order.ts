@@ -14,9 +14,16 @@ export interface Order {
   customerName: string;
   whatsapp: string;
   totalAmount: number;
-  items: OrderItem[]; // Menggunakan tipe OrderItem[] bukan `any` atau `Json`
+  subtotal?: number;
+  discountAmount: number;
+  items: OrderItem[];
   status: 'PENDING' | 'PAID' | 'PREPARING' | 'READY' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED';
   snapToken: string | null;
-  createdAt: string; // Tipe data tanggal menjadi string saat dikirim dari server
+  voucherId: string | null;
+  voucher?: {
+    code: string;
+    name: string;
+  };
+  createdAt: string;
   updatedAt: string;
 }

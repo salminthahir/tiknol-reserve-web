@@ -52,6 +52,34 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        // --- ADVANCED RULES (Phase 4) ---
+
+        // 1. Happy Hour Validation
+        if (voucher.happyHourStart && voucher.happyHourEnd) {
+            const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            if (currentTimeStr < voucher.happyHourStart || currentTimeStr > voucher.happyHourEnd) {
+                return NextResponse.json({
+                    valid: false,
+                    message: `Voucher hanya berlaku pada jam happy hour: ${voucher.happyHourStart} - ${voucher.happyHourEnd}`
+                });
+            }
+        }
+
+        // 2. Category-specific Validation
+        if (voucher.applicableCategories && Array.isArray(voucher.applicableCategories) && (voucher.applicableCategories as string[]).length > 0) {
+            const allowedCategories = voucher.applicableCategories as string[];
+            const hasItemsFromCategories = items?.some((item: any) =>
+                allowedCategories.includes(item.category)
+            );
+
+            if (!hasItemsFromCategories) {
+                return NextResponse.json({
+                    valid: false,
+                    message: `Voucher ini hanya berlaku untuk kategori: ${allowedCategories.join(', ')}`
+                });
+            }
+        }
+
         // Check usage limit
         if (voucher.usageLimit && voucher.usageCount >= voucher.usageLimit) {
             return NextResponse.json({
@@ -69,8 +97,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Check applicable items (if specified)
-        if (voucher.applicableItems && Array.isArray(voucher.applicableItems)) {
-            const applicableIds = voucher.applicableItems as number[];
+        if (voucher.applicableItems && Array.isArray(voucher.applicableItems) && (voucher.applicableItems as string[]).length > 0) {
+            const applicableIds = voucher.applicableItems as string[];
             const hasApplicableItem = items?.some((item: any) =>
                 applicableIds.includes(item.id)
             );

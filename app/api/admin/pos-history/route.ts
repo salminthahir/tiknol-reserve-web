@@ -9,6 +9,9 @@ export async function GET() {
       where: {
         orderSource: "CASHIER_POS" // Filter hanya order dari POS
       },
+      include: {
+        voucher: true // Include voucher details
+      },
       orderBy: {
         createdAt: 'desc' // Yang terbaru di atas
       }
