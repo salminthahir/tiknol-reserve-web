@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
@@ -36,33 +34,33 @@ export async function POST(request: Request) {
       });
     } else if (employee.deviceId !== deviceId) {
       // Mismatch
-      return NextResponse.json({ 
-        error: 'Device mismatch. Please use your registered device or ask admin to reset.' 
+      return NextResponse.json({
+        error: 'Device mismatch. Please use your registered device or ask admin to reset.'
       }, { status: 403 });
     }
 
     // 2. Validate Location (Phase 3)
     const settings = await prisma.settings.findFirst();
     if (settings && settings.officeLatitude && settings.officeLongitude) {
-        const R = 6371e3; // metres
-        const lat1 = settings.officeLatitude * Math.PI / 180;
-        const lat2 = latitude * Math.PI / 180;
-        const deltaLat = (latitude - settings.officeLatitude) * Math.PI / 180;
-        const deltaLon = (longitude - settings.officeLongitude) * Math.PI / 180;
+      const R = 6371e3; // metres
+      const lat1 = settings.officeLatitude * Math.PI / 180;
+      const lat2 = latitude * Math.PI / 180;
+      const deltaLat = (latitude - settings.officeLatitude) * Math.PI / 180;
+      const deltaLon = (longitude - settings.officeLongitude) * Math.PI / 180;
 
-        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-                  Math.cos(lat1) * Math.cos(lat2) *
-                  Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = R * c; // in meters
+      const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) *
+        Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c; // in meters
 
-        console.log(`Distance: ${distance}m, Max: ${settings.maxRadius}m`);
+      console.log(`Distance: ${distance}m, Max: ${settings.maxRadius}m`);
 
-        if (distance > settings.maxRadius) {
-            return NextResponse.json({
-                error: `Diluar jangkauan kantor. Jarak: ${Math.round(distance)}m (Max: ${settings.maxRadius}m).`
-            }, { status: 403 });
-        }
+      if (distance > settings.maxRadius) {
+        return NextResponse.json({
+          error: `Diluar jangkauan kantor. Jarak: ${Math.round(distance)}m (Max: ${settings.maxRadius}m).`
+        }, { status: 403 });
+      }
     }
 
     // 3. Process Image
@@ -87,7 +85,7 @@ export async function POST(request: Request) {
     const attendance = await prisma.attendance.create({
       data: {
         employeeId,
-        type, 
+        type,
         timestamp: new Date(), // Server Time
         photoUrl,
         latitude,
@@ -97,8 +95,8 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       attendance,
       message: type === 'CLOCK_IN' ? `Selamat bekerja, ${employee.name}!` : `Terima kasih, ${employee.name}. Hati-hati di jalan!`
     });

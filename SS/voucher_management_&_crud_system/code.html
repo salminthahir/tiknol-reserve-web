@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NOL Reserve - Voucher Management</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f9f506", // Original Brand Yellow
+                        "accent": "#ffab00", // New Reddish-Yellow (Amber) for actions
+                        "background-dark": "#181811", // Main dark background
+                        "surface-dark": "#23231a", // Darker surface for cards
+                        "surface-light": "#333226", // Lighter surface for borders/hovers
+                        "text-secondary": "#9e9d89",
+                    },
+                    fontFamily: {
+                        "display": ["Work Sans", "sans-serif"],
+                        "mono": ["monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #181811; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333226; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4935; 
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-white font-display h-screen flex overflow-hidden selection:bg-accent selection:text-black">
+<aside class="w-64 flex-shrink-0 border-r border-surface-light/30 flex flex-col h-full bg-[#181811]">
+<div class="p-6">
+<div class="flex flex-col gap-1">
+<h1 class="text-white text-xl font-bold tracking-tight">.NOL Reserve</h1>
+<p class="text-text-secondary text-xs uppercase tracking-wider">Admin Console</p>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto px-4 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">shopping_bag</span>
+<span class="font-medium text-sm">Orders</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">restaurant_menu</span>
+<span class="font-medium text-sm">Menu</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg bg-surface-dark border border-surface-light/30 text-white" href="#">
+<span class="material-symbols-outlined icon-fill text-primary">confirmation_number</span>
+<span class="font-medium text-sm">Vouchers</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">group</span>
+<span class="font-medium text-sm">Customers</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">analytics</span>
+<span class="font-medium text-sm">Analytics</span>
+</a>
+</nav>
+<div class="p-4 border-t border-surface-light/30">
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-dark hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-text-secondary group-hover:text-white">settings</span>
+<span class="font-medium text-sm">Settings</span>
+</a>
+<div class="flex items-center gap-3 px-3 py-3 mt-2">
+<div class="w-8 h-8 rounded-full bg-surface-dark flex items-center justify-center text-primary font-bold text-xs border border-primary/20">
+                    AD
+                </div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Admin User</span>
+<span class="text-xs text-text-secondary">Manager</span>
+</div>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-full overflow-hidden relative">
+<header class="h-20 flex items-center justify-between px-8 border-b border-surface-light/30 shrink-0 bg-[#181811]/95 backdrop-blur-sm z-10">
+<div class="flex flex-col">
+<h2 class="text-2xl font-bold tracking-tight text-white">Voucher Management</h2>
+<p class="text-text-secondary text-sm">Manage discounts and promotional codes</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 rounded-lg bg-surface-dark hover:bg-surface-light border border-transparent hover:border-surface-light/50 flex items-center justify-center text-text-secondary hover:text-white transition-all" title="Toggle Theme">
+<span class="material-symbols-outlined text-[20px]">light_mode</span>
+</button>
+<button class="w-10 h-10 rounded-lg bg-surface-dark hover:bg-surface-light border border-transparent hover:border-surface-light/50 flex items-center justify-center text-text-secondary hover:text-white transition-all relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-accent"></span>
+</button>
+<button class="bg-accent hover:bg-yellow-500 text-black font-semibold text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 transition-colors ml-2">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span>Add New Voucher</span>
+</button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8">
+<div class="max-w-[1200px] mx-auto flex flex-col gap-8">
+<div class="bg-surface-dark border border-surface-light/30 rounded-xl p-5 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-[#181811] border border-surface-light/30 flex items-center justify-center text-text-secondary">
+<span class="material-symbols-outlined text-[24px]">sync</span>
+</div>
+<div>
+<h3 class="text-white font-medium text-lg">POS Synchronization</h3>
+<p class="text-text-secondary text-sm">Sync active vouchers to terminals.</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-light peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-text-secondary after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent peer-checked:after:bg-black"></div>
+<span class="ms-3 text-sm font-medium text-white">Active</span>
+</label>
+</div>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-center gap-1 bg-surface-dark border border-surface-light/30 rounded-lg p-1 w-fit">
+<button class="px-4 py-1.5 rounded-md bg-[#181811] border border-surface-light/30 text-white text-sm font-medium">All</button>
+<button class="px-4 py-1.5 rounded-md text-text-secondary hover:text-white hover:bg-surface-light/50 text-sm font-medium transition-colors">Active</button>
+<button class="px-4 py-1.5 rounded-md text-text-secondary hover:text-white hover:bg-surface-light/50 text-sm font-medium transition-colors">Scheduled</button>
+<button class="px-4 py-1.5 rounded-md text-text-secondary hover:text-white hover:bg-surface-light/50 text-sm font-medium transition-colors">Expired</button>
+</div>
+<div class="relative w-full md:w-80">
+<div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+<span class="material-symbols-outlined text-text-secondary text-[20px]">search</span>
+</div>
+<input class="block w-full p-2.5 pl-10 text-sm text-white bg-surface-dark border border-surface-light/30 rounded-lg focus:ring-1 focus:ring-accent focus:border-accent placeholder-text-secondary/50 focus:outline-none transition-all" placeholder="Search vouchers..." type="text"/>
+</div>
+</div>
+<div class="border border-surface-light/30 rounded-xl overflow-hidden bg-surface-dark/20">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-light/30 text-text-secondary text-xs uppercase tracking-wider">
+<th class="px-6 py-5 font-medium">Code</th>
+<th class="px-6 py-5 font-medium">Description</th>
+<th class="px-6 py-5 font-medium">Value</th>
+<th class="px-6 py-5 font-medium">Usage</th>
+<th class="px-6 py-5 font-medium">Expiry</th>
+<th class="px-6 py-5 font-medium">Status</th>
+<th class="px-6 py-5 font-medium text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-light/30 text-sm">
+<tr class="group hover:bg-surface-dark/50 transition-colors">
+<td class="px-6 py-5 align-middle">
+<span class="font-mono text-white font-semibold">WELCOME50</span>
+</td>
+<td class="px-6 py-5 align-middle">
+<div class="flex flex-col">
+<span class="text-white font-medium">New User Bonus</span>
+<span class="text-xs text-text-secondary">First order only</span>
+</div>
+</td>
+<td class="px-6 py-5 text-white align-middle">50% Off</td>
+<td class="px-6 py-5 text-text-secondary align-middle">45 / 100</td>
+<td class="px-6 py-5 text-text-secondary align-middle">Dec 31, 2023</td>
+<td class="px-6 py-5 align-middle">
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium bg-[#181811] border border-surface-light/50 text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Active
+                                        </div>
+</td>
+<td class="px-6 py-5 text-right align-middle">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="group hover:bg-surface-dark/50 transition-colors">
+<td class="px-6 py-5 align-middle">
+<span class="font-mono text-text-secondary">SUMMER23</span>
+</td>
+<td class="px-6 py-5 align-middle">
+<div class="flex flex-col">
+<span class="text-white font-medium">Summer Drinks</span>
+<span class="text-xs text-text-secondary">Iced coffee only</span>
+</div>
+</td>
+<td class="px-6 py-5 text-white align-middle">$5.00 Off</td>
+<td class="px-6 py-5 text-text-secondary align-middle">128 / 500</td>
+<td class="px-6 py-5 text-text-secondary align-middle">Aug 30, 2023</td>
+<td class="px-6 py-5 align-middle">
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium bg-[#181811] border border-surface-light/50 text-text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-text-secondary"></span>
+                                            Expired
+                                        </div>
+</td>
+<td class="px-6 py-5 text-right align-middle">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="group hover:bg-surface-dark/50 transition-colors">
+<td class="px-6 py-5 align-middle">
+<span class="font-mono text-white font-semibold">FREESHIP</span>
+</td>
+<td class="px-6 py-5 align-middle">
+<div class="flex flex-col">
+<span class="text-white font-medium">Free Delivery</span>
+<span class="text-xs text-text-secondary">Orders over $50</span>
+</div>
+</td>
+<td class="px-6 py-5 text-white align-middle">Free Shipping</td>
+<td class="px-6 py-5 text-text-secondary align-middle">Unlimited</td>
+<td class="px-6 py-5 text-text-secondary align-middle">--</td>
+<td class="px-6 py-5 align-middle">
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium bg-[#181811] border border-surface-light/50 text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Active
+                                        </div>
+</td>
+<td class="px-6 py-5 text-right align-middle">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="group hover:bg-surface-dark/50 transition-colors">
+<td class="px-6 py-5 align-middle">
+<span class="font-mono text-white font-semibold">XMAS2023</span>
+</td>
+<td class="px-6 py-5 align-middle">
+<div class="flex flex-col">
+<span class="text-white font-medium">Christmas Special</span>
+<span class="text-xs text-text-secondary">Starts Dec 1st</span>
+</div>
+</td>
+<td class="px-6 py-5 text-white align-middle">20% Off</td>
+<td class="px-6 py-5 text-text-secondary align-middle">0 / 200</td>
+<td class="px-6 py-5 text-text-secondary align-middle">Dec 25, 2023</td>
+<td class="px-6 py-5 align-middle">
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium bg-[#181811] border border-surface-light/50 text-blue-400">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                            Scheduled
+                                        </div>
+</td>
+<td class="px-6 py-5 text-right align-middle">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="group hover:bg-surface-dark/50 transition-colors">
+<td class="px-6 py-5 align-middle">
+<span class="font-mono text-white font-semibold">COFFEE10</span>
+</td>
+<td class="px-6 py-5 align-middle">
+<div class="flex flex-col">
+<span class="text-white font-medium">Morning Brew</span>
+<span class="text-xs text-text-secondary">Before 10AM</span>
+</div>
+</td>
+<td class="px-6 py-5 text-white align-middle">10% Off</td>
+<td class="px-6 py-5 text-text-secondary align-middle">892 / 1000</td>
+<td class="px-6 py-5 text-text-secondary align-middle">Oct 15, 2024</td>
+<td class="px-6 py-5 align-middle">
+<div class="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium bg-[#181811] border border-surface-light/50 text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Active
+                                        </div>
+</td>
+<td class="px-6 py-5 text-right align-middle">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-surface-light/30 bg-surface-dark/30 flex items-center justify-between">
+<div class="text-xs text-text-secondary">
+                            Showing <span class="text-white font-medium">1-5</span> of <span class="text-white font-medium">12</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-surface-light text-white text-xs font-medium border border-surface-light">1</button>
+<button class="w-8 h-8 rounded hover:bg-surface-light text-text-secondary hover:text-white text-xs font-medium transition-colors">2</button>
+<button class="w-8 h-8 rounded hover:bg-surface-light text-text-secondary hover:text-white text-xs font-medium transition-colors">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded hover:bg-surface-light text-text-secondary hover:text-white">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+</body></html>

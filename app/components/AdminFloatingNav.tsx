@@ -30,9 +30,6 @@ export default function AdminFloatingNav() {
         { href: '/admin/pos', label: 'POS', icon: <ShoppingBag size={20} /> },
         { href: '/admin/pos-history', label: 'History', icon: <History size={20} /> },
         { href: '/admin/menu', label: 'Menu', icon: <UtensilsCrossed size={20} /> },
-        { href: '/admin/employees', label: 'Employees', icon: <Users size={20} /> },
-        { href: '/admin/vouchers', label: 'Vouchers', icon: <Ticket size={20} /> },
-        { href: '/admin/revenue', label: 'Revenue', icon: <TrendingUp size={20} /> },
     ];
 
     return (

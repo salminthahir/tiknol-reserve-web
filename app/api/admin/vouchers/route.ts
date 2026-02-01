@@ -21,19 +21,14 @@ export async function GET(req: NextRequest) {
 
         const vouchers = await prisma.voucher.findMany({
             where,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                _count: {
-                    select: { orders: true }
-                }
-            }
+            orderBy: { createdAt: 'desc' }
         });
 
         return NextResponse.json(vouchers);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching vouchers:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch vouchers' },
+            { error: 'Failed to fetch vouchers', details: error.message },
             { status: 500 }
         );
     }

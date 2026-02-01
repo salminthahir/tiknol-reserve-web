@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET: List all employees
 export async function GET() {
@@ -99,7 +97,14 @@ export async function PATCH(request: Request) {
       updateData = {
         name: data.name,
         whatsapp: data.whatsapp,
+        role: data.role, // Allow role update
       };
+
+      // Update PIN if provided
+      if (data.pin) {
+        updateData.pin = data.pin;
+      }
+
       // Allow ID update if changed
       if (id && id !== targetId) {
         // Check if new ID exists
