@@ -343,8 +343,8 @@ export default function EmployeesPage() {
                                     <input
                                         required
                                         value={formData.id}
-                                        onChange={e => setFormData({ ...formData, id: e.target.value })}
-                                        className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-none rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 focus:ring-[#FFBF00] dark:text-white"
+                                        onChange={e => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
+                                        className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-none rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 focus:ring-[#FFBF00] dark:text-white uppercase"
                                     />
                                 </div>
                             )}
