@@ -162,8 +162,19 @@ enum AttendanceStatus {
 // 6. Model Settings (Config)
 model Settings {
   id              String   @id @default(cuid())
+  
+  // Store Information
+  storeName       String   @default("Nol Coffee")
+  storeAddress    String?
+  storePhone      String?
+  
+  // Super Admin Profile
+  adminName       String   @default("Super Admin")
+  
+  // Geofencing
   officeLatitude  Float    @default(0) // Latitude Kantor
   officeLongitude Float    @default(0) // Longitude Kantor
   maxRadius       Float    @default(100) // Radius Absen (meter)
+  
   updatedAt       DateTime @updatedAt
 }

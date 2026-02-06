@@ -8,6 +8,7 @@ import {
     TrendingUp,
     Ticket,
     Users,
+    Clock,
     Settings
 } from 'lucide-react';
 
@@ -19,6 +20,7 @@ export default function SuperAdminMobileNav() {
         { href: '/super-admin/revenue', label: 'Revenue', icon: <TrendingUp size={20} /> },
         { href: '/super-admin/vouchers', label: 'Promo', icon: <Ticket size={20} /> },
         { href: '/super-admin/employees', label: 'Team', icon: <Users size={20} /> },
+        { href: '/super-admin/attendance', label: 'Attend', icon: <Clock size={20} /> },
         { href: '/super-admin/settings', label: 'Config', icon: <Settings size={20} /> },
     ];
 

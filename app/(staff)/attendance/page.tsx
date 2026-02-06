@@ -57,12 +57,26 @@ export default function AttendancePage() {
         }
     };
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (employeeId.trim()) {
-            localStorage.setItem('tiknol_employee_id', employeeId);
-            setIsLoggedIn(true);
-            fetchStatus(employeeId);
+        if (!employeeId.trim()) return;
+
+        // Visual Feedback Loading could be added here
+        try {
+            const res = await fetch(`/api/attendance/status?employeeId=${employeeId}`);
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('tiknol_employee_id', employeeId);
+                setStatus(data.status);
+                if (data.serverTime) setServerTime(new Date(data.serverTime));
+                setIsLoggedIn(true);
+            } else {
+                alert('ID Karyawan tidak ditemukan atau tidak aktif.');
+                setEmployeeId(''); // Clear input on failure
+            }
+        } catch (error) {
+            console.error('Login error', error);
+            alert('Gagal terhubung ke server.');
         }
     };
 
@@ -138,7 +152,7 @@ export default function AttendancePage() {
                             <input
                                 type="text"
                                 value={employeeId}
-                                onChange={(e) => setEmployeeId(e.target.value)}
+                                onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
                                 className="w-full border-4 border-black rounded-lg p-4 font-mono text-center text-xl font-bold uppercase focus:outline-none focus:shadow-[4px_4px_0px_black] transition-all text-black placeholder:text-gray-400"
                                 placeholder="EMP-XXX"
                                 required
@@ -180,7 +194,7 @@ export default function AttendancePage() {
     const isWorking = status === 'CLOCKED_IN';
 
     return (
-        <div className={`min-h-screen flex flex-col p-6 transition-colors duration-500 ${isWorking ? 'bg-[#E0F7FA]' : 'bg-[#FFF8E1]'}`}>
+        <div className={`min-h-screen flex flex-col p-4 md:p-8 transition-colors duration-500 overflow-y-auto ${isWorking ? 'bg-[#E0F7FA]' : 'bg-[#FFF8E1]'}`}>
 
             {/* Header */}
             <div className="flex justify-between items-center mb-8">
@@ -220,23 +234,23 @@ export default function AttendancePage() {
             </div>
 
             {/* BIG BUTTON */}
-            <div className="flex-1 flex flex-col justify-center items-center pb-20">
+            <div className="flex-1 flex flex-col justify-center items-center pb-10 min-h-[400px]">
                 {isSubmitting ? (
-                    <div className="w-64 h-64 rounded-full bg-white border-4 border-black flex flex-col items-center justify-center animate-pulse shadow-[8px_8px_0px_black]">
+                    <div className="w-56 h-56 md:w-64 md:h-64 rounded-full bg-white border-4 border-black flex flex-col items-center justify-center animate-pulse shadow-[8px_8px_0px_black]">
                         <Loader2 className="animate-spin text-black mb-2" size={48} />
-                        <span className="font-black text-black uppercase tracking-widest">MEMPROSES...</span>
+                        <span className="font-black text-black uppercase tracking-widest text-sm md:text-base">MEMPROSES...</span>
                     </div>
                 ) : (
                     <button
                         onClick={() => setShowCamera(true)}
                         disabled={status === 'CLOCKED_OUT' || status === 'LOADING'}
                         className={`
-              relative w-72 h-72 rounded-full flex flex-col items-center justify-center transition-all duration-200
+              relative w-64 h-64 md:w-80 md:h-80 rounded-full flex flex-col items-center justify-center transition-all duration-200
               border-4 border-black
               active:scale-95 active:shadow-none active:translate-y-2 active:translate-x-2
               ${status === 'LOADING' ? 'bg-gray-200 cursor-wait shadow-[8px_8px_0px_gray]' : ''}
-              ${status === 'NOT_CLOCKED_IN' ? 'bg-[#00E676] hover:bg-[#00C853] text-black shadow-[12px_12px_0px_black]' : ''}
-              ${status === 'CLOCKED_IN' ? 'bg-[#FF1744] hover:bg-[#D50000] text-white shadow-[12px_12px_0px_black]' : ''}
+              ${status === 'NOT_CLOCKED_IN' ? 'bg-[#00E676] hover:bg-[#00C853] text-black shadow-[10px_10px_0px_black] md:shadow-[14px_14px_0px_black]' : ''}
+              ${status === 'CLOCKED_IN' ? 'bg-[#FF1744] hover:bg-[#D50000] text-white shadow-[10px_10px_0px_black] md:shadow-[14px_14px_0px_black]' : ''}
               ${status === 'CLOCKED_OUT' ? 'bg-gray-800 text-gray-400 border-gray-600 cursor-not-allowed shadow-[8px_8px_0px_gray]' : ''}
             `}
                     >

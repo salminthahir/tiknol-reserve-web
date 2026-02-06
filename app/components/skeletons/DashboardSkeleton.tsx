@@ -49,8 +49,8 @@ export default function DashboardSkeleton() {
                         </div>
                     </div>
                     <div className="flex items-end gap-4 h-[250px] overflow-hidden">
-                        {[...Array(8)].map((_, i) => (
-                            <div key={i} className="flex-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-t-lg" style={{ height: `${Math.random() * 80 + 20}%` }}></div>
+                        {[65, 45, 80, 35, 70, 55, 90, 40].map((height, i) => (
+                            <div key={i} className="flex-1 bg-gray-100 dark:bg-[#1A1A1A] rounded-t-lg" style={{ height: `${height}%` }}></div>
                         ))}
                     </div>
                 </div>

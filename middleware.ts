@@ -35,9 +35,11 @@ export function middleware(request: NextRequest) {
     // EXCEPTION: Login API itself must be public (if we had one under /api/admin, but ours is /api/auth)
     // Our login APIs are under /api/auth, so they are safe from this block.
 
-    const hasSession = request.cookies.has('staff_session');
+    const hasStaffSession = request.cookies.has('staff_session');
+    const hasSuperAdminSession = request.cookies.has('super_admin_session');
 
-    if (!hasSession) {
+    // Allow access if user has EITHER staff OR super_admin session
+    if (!hasStaffSession && !hasSuperAdminSession) {
       // Jika request API -> Return 401 JSON
       if (request.nextUrl.pathname.startsWith('/api/')) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });

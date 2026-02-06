@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Script from 'next/script';
-import { Search, ShoppingBag, Trash2, X, Plus, Minus, CreditCard, Banknote, Ticket, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ShoppingBag, Trash2, X, Plus, Minus, CreditCard, Banknote, Ticket, ChevronDown, ChevronUp, Loader2, Printer } from 'lucide-react';
 import PosSkeleton from '@/app/components/skeletons/PosSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+
+
+import { generateRawBTUrl } from '@/app/utils/receiptGenerator';
 
 // --- TIPE DATA ---
 type Product = {
@@ -48,6 +51,21 @@ export default function POSPage() {
 
   // STATE BARU: Order Type (DINE_IN atau TAKE_AWAY)
   const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKE_AWAY'>('DINE_IN');
+
+  // STATE BARU: Success Modal Data
+  const [successModal, setSuccessModal] = useState<any | null>(null);
+
+  // TRIGGER AUTO PRINT SAAT MODAL SUKSES MUNCUL
+  useEffect(() => {
+    if (successModal) {
+      // Auto trigger print setelah jeda singkat
+      const timer = setTimeout(() => {
+        const url = generateRawBTUrl(successModal);
+        window.location.href = url;
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [successModal]);
 
   // STATE BARU: Confirmation Modal
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; type: 'CASH' | 'ONLINE' | null }>({ open: false, type: null });
@@ -274,8 +292,21 @@ export default function POSPage() {
       if (window.snap) {
         window.snap.pay(transactionToken, {
           onSuccess: async function (result: any) {
-            // PERBAIKAN DI SINI: Menggunakan result.order_id dari response Midtrans
-            router.push(`/ticket/${result.order_id}/print`);
+            // FLOW BARU: In-Page Success Modal (Auto Print Invisible)
+            // Kita construct object successModal dari data lokal + result.order_id
+            // karena di database order sudah dibuat via API tokenizer
+            const orderForReceipt = {
+              id: result.order_id,
+              customerName: orderPayload.customerName,
+              items: orderPayload.items, // Gunakan items dari payload yang sudah diformat
+              totalAmount: finalTotal,
+              createdAt: new Date().toISOString(),
+              paymentType: 'QRIS',
+              discountAmount: voucherDiscount
+            };
+
+            setSuccessModal(orderForReceipt);
+
             setCart([]); // Clear cart after successful payment
             setCustomerPosName(''); // Clear customer name
             setIsProcessingPayment(false);
@@ -307,7 +338,7 @@ export default function POSPage() {
   const processCashPayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
-    setConfirmModal({ open: false, type: null }); // Close modal
+    // setConfirmModal({ open: false, type: null }); // Jangan tutup modal dulu biar loading kelihatan
 
     try {
       const orderData = {
@@ -339,18 +370,34 @@ export default function POSPage() {
         throw new Error(errorData.message || `Failed to process cash payment: ${res.status}`);
       }
 
-      const newOrder = await res.json(); // Assuming the API returns the created order object
+      const newOrder = await res.json();
 
-      alert(`Pembayaran Tunai Berhasil! Pesanan ID: ${newOrder.id}`);
-      window.open(`/ticket/${newOrder.id}/print`, '_blank'); // Open print page in new tab
-      setCart([]); // Clear cart after successful payment
-      setCustomerPosName(''); // Clear customer name
+      // Parse items if string (Prisma might return it as string depending on schema)
+      if (typeof newOrder.items === 'string') {
+        try {
+          newOrder.items = JSON.parse(newOrder.items);
+        } catch (e) {
+          console.error("Failed to parse items:", e);
+          newOrder.items = [];
+        }
+      }
+
+      // Artificial Delay biar user lihat "Memproses..."
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // FLOW BARU: In-Page Success Modal (Auto Print Invisible)
+      setSuccessModal(newOrder);
+
+      setCart([]);
+      setCustomerPosName('');
+      setConfirmModal({ open: false, type: null }); // Baru tutup modal
       setIsProcessingPayment(false);
 
     } catch (err: any) {
       console.error("Cash payment failed:", err);
       alert(`Pembayaran tunai gagal: ${err.message || 'Terjadi kesalahan'}`);
       setIsProcessingPayment(false);
+      setConfirmModal({ open: false, type: null });
     }
 
   };
@@ -728,7 +775,7 @@ export default function POSPage() {
             )}
 
             {cart.map((item) => (
-              <div key={item.id} className="relative z-10 flex gap-3 p-3 bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_black] hover:translate-x-[1px] transition-transform">
+              <div key={`${item.id}-${item.selectedTemp || ''}-${item.selectedSize || ''}`} className="relative z-10 flex gap-3 p-3 bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_black] hover:translate-x-[1px] transition-transform">
                 {/* Thumbnail */}
                 <div className="w-14 h-14 bg-gray-100 border-2 border-black rounded-lg shrink-0 overflow-hidden">
                   {item.image ? (
@@ -977,15 +1024,117 @@ export default function POSPage() {
                     if (confirmModal.type === 'CASH') processCashPayment();
                     else processOnlinePayment();
                   }}
-                  className="py-3.5 font-black bg-[#FFC567] text-black border-2 border-black shadow-[4px_4px_0px_black] hover:bg-[#FFD188] hover:translate-y-0.5 hover:shadow-[2px_2px_0px_black] active:translate-y-1 active:shadow-none transition-all uppercase text-sm flex gap-2 items-center justify-center"
+                  disabled={isProcessingPayment}
+                  className="py-3.5 font-black bg-[#FFC567] text-black border-2 border-black shadow-[4px_4px_0px_black] hover:bg-[#FFD188] hover:translate-y-0.5 hover:shadow-[2px_2px_0px_black] active:translate-y-1 active:shadow-none transition-all uppercase text-sm flex gap-2 items-center justify-center disabled:opacity-70 disabled:cursor-wait"
                 >
-                  Ya, Lanjut
+                  {isProcessingPayment ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>Memproses...</span>
+                    </>
+                  ) : (
+                    'Ya, Lanjut'
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* SUCCESS MODAL (AUTO PRINT INTENT) */}
+      <AnimatePresence>
+        {successModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl relative text-center"
+            >
+              {/* Header */}
+              <div className="bg-[#552CB7] p-8 text-white relative overflow-hidden flex flex-col items-center justify-center">
+                <div className="absolute top-0 left-0 w-full h-full bg-[url('/pattern-noise.png')] opacity-10"></div>
+
+                {/* Checkmark Animation */}
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-[0_4px_12px_rgba(0,0,0,0.2)] animate-[bounce_1s_infinite]">
+                  <svg className="w-10 h-10 text-[#552CB7]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+
+                <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-1">Pembayaran Berhasil!</h2>
+                <p className="text-sm font-medium opacity-80">Order #{successModal.id.slice(-6).toUpperCase()}</p>
+              </div>
+
+              {/* Receipt Preview (Order Details) */}
+              <div className="p-5 bg-gray-50 max-h-[50vh] overflow-y-auto text-left">
+                <div className="bg-white p-3 shadow-sm border border-gray-200 rounded-xl text-xs font-mono space-y-2">
+                  <div className="text-center font-bold border-b border-gray-100 pb-2 mb-2 text-gray-400 uppercase tracking-widest text-[10px]">
+                    Rincian Pesanan
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {successModal.items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-start gap-2">
+                        <span className="uppercase font-medium text-gray-700 leading-tight">
+                          {item.qty}x {item.name}
+                        </span>
+                        <span className="font-bold shrink-0">
+                          {(item.price * item.qty).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                    {successModal.discountAmount > 0 && (
+                      <div className="flex justify-between text-[#00995E]">
+                        <span>Hemat (Voucher)</span>
+                        <span>- {successModal.discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-black text-sm pt-1">
+                      <span>TOTAL</span>
+                      <span>Rp {successModal.totalAmount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-center">
+                  <p className="text-[10px] text-gray-400 italic animate-pulse">
+                    Sedang mencetak struk secara otomatis...
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-4 bg-white flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    const url = generateRawBTUrl(successModal);
+                    window.location.href = url;
+                  }}
+                  className="w-full py-3 bg-gray-100 text-black border-2 border-black font-black rounded-xl hover:bg-gray-200 transition-colors uppercase flex items-center justify-center gap-2 text-sm"
+                >
+                  <Printer size={16} /> Print Manual
+                </button>
+
+                <button
+                  onClick={() => setSuccessModal(null)}
+                  className="w-full py-3 bg-[#00995E] text-white font-black rounded-xl shadow-[4px_4px_0px_black] hover:translate-y-0.5 hover:shadow-[2px_2px_0px_black] active:shadow-none active:translate-y-1 transition-all uppercase text-sm"
+                >
+                  Selesai / Transaksi Baru
+                </button>
+              </div>
+
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

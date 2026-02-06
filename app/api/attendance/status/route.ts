@@ -15,7 +15,20 @@ export async function GET(request: Request) {
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
     try {
-        // Find latest attendance record for today
+        // 1. Verify Employee Exists FIRST
+        const employee = await prisma.employee.findUnique({
+            where: { id: employeeId }
+        });
+
+        if (!employee) {
+            return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+        }
+
+        if (!employee.isActive) {
+            return NextResponse.json({ error: 'Employee inactive' }, { status: 403 });
+        }
+
+        // 2. Find latest attendance record for today (if valid employee)
         const todaysAttendance = await prisma.attendance.findFirst({
             where: {
                 employeeId: employeeId,

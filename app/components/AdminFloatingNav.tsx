@@ -2,23 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     ShoppingBag,
     History,
     UtensilsCrossed,
-    TrendingUp,
     ChevronRight,
     ChefHat,
     X,
     Menu as MenuIcon,
-    Ticket,
-    Users
+    LogOut
 } from 'lucide-react';
 
 export default function AdminFloatingNav() {
     const pathname = usePathname();
+    const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
+
+    const handleLogout = async () => {
+        setLoggingOut(true);
+        try {
+            await fetch('/api/auth/staff/logout', { method: 'POST' });
+            router.push('/login');
+        } catch (error) {
+            console.error('Logout failed:', error);
+            setLoggingOut(false);
+        }
+    };
 
     // Auto-close on route change
     useEffect(() => {
@@ -26,8 +37,8 @@ export default function AdminFloatingNav() {
     }, [pathname]);
 
     const links = [
-        { href: '/admin/kitchen-online', label: 'Kitchen Online', icon: <ChefHat size={20} /> },
         { href: '/admin/pos', label: 'POS System', icon: <ShoppingBag size={20} /> },
+        { href: '/admin/kitchen-online', label: 'Kitchen Online', icon: <ChefHat size={20} /> },
         { href: '/admin/pos-history', label: 'Order History', icon: <History size={20} /> },
         { href: '/admin/menu', label: 'Menu List', icon: <UtensilsCrossed size={20} /> },
     ];
@@ -123,10 +134,15 @@ export default function AdminFloatingNav() {
                             })}
                         </nav>
 
-                        {/* Footer Tick */}
-                        <div className="mt-2 text-center">
-                            <div className="h-1 w-10 bg-black/20 rounded-full mx-auto"></div>
-                        </div>
+                        {/* Logout Button */}
+                        <button
+                            onClick={handleLogout}
+                            disabled={loggingOut}
+                            className="mt-2 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-red-500 bg-red-500 text-white font-bold text-sm uppercase tracking-wide hover:bg-red-600 transition-all active:scale-95 shadow-[4px_4px_0px_rgba(0,0,0,0.3)] disabled:opacity-50"
+                        >
+                            <LogOut size={18} />
+                            {loggingOut ? 'Logging out...' : 'Logout'}
+                        </button>
                     </div>
                 </div>
             </div>
