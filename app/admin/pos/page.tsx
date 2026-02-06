@@ -401,7 +401,7 @@ export default function POSPage() {
               </h1>
               <div className="flex gap-2">
                 <Link href="/admin/menu" className="font-black text-[10px] bg-[#FFC567] text-black border-2 border-black px-3 py-1.5 rounded-full shadow-[1px_1px_0px_black] hover:translate-y-[1px] hover:shadow-none transition-all">MENU</Link>
-                <Link href="/admin/dashboard" className="font-black text-[10px] bg-[#00995E] text-white border-2 border-black px-3 py-1.5 rounded-full shadow-[1px_1px_0px_black] hover:translate-y-[1px] hover:shadow-none transition-all">KITCHEN</Link>
+                <Link href="/admin/kitchen-online" className="font-black text-[10px] bg-[#00995E] text-white border-2 border-black px-3 py-1.5 rounded-full shadow-[1px_1px_0px_black] hover:translate-y-[1px] hover:shadow-none transition-all">KITCHEN-On</Link>
               </div>
             </div>
 

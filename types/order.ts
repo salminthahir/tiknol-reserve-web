@@ -2,7 +2,7 @@
 
 // Definisi untuk satu item di dalam pesanan
 export interface OrderItem {
-  id: number; // ID unik dari menu item
+  id: string; // ID unik dari menu item
   name: string;
   qty: number;
   price: number;

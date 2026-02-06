@@ -26,10 +26,10 @@ export default function AdminFloatingNav() {
     }, [pathname]);
 
     const links = [
-        { href: '/admin/dashboard', label: 'Kitchen', icon: <ChefHat size={20} /> },
-        { href: '/admin/pos', label: 'POS', icon: <ShoppingBag size={20} /> },
-        { href: '/admin/pos-history', label: 'History', icon: <History size={20} /> },
-        { href: '/admin/menu', label: 'Menu', icon: <UtensilsCrossed size={20} /> },
+        { href: '/admin/kitchen-online', label: 'Kitchen Online', icon: <ChefHat size={20} /> },
+        { href: '/admin/pos', label: 'POS System', icon: <ShoppingBag size={20} /> },
+        { href: '/admin/pos-history', label: 'Order History', icon: <History size={20} /> },
+        { href: '/admin/menu', label: 'Menu List', icon: <UtensilsCrossed size={20} /> },
     ];
 
     return (

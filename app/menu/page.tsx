@@ -108,7 +108,7 @@ function MenuContent() {
         }
         return [...prev, { ...product, qty: 1, uniqueKey }];
       });
-      if (cart.length === 0) setIsCartOpen(true);
+      // Removed auto-open cart: setIsCartOpen(true);
     }
   };
 
@@ -129,7 +129,7 @@ function MenuContent() {
     });
 
     setSelectedProduct(null);
-    if (cart.length === 0) setIsCartOpen(true);
+    // Removed auto-open cart: setIsCartOpen(true);
   };
 
   const updateQty = (uniqueKey: string, delta: number) => {
