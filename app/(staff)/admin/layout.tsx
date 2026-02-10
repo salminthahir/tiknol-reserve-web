@@ -1,12 +1,13 @@
+import AdminFloatingNav from '@/app/components/AdminFloatingNav';
 import type { Metadata } from 'next';
 
-// Metadata minimal - hanya untuk tab browser, BUKAN SEO
+// Metadata untuk Admin Pages
 export const metadata: Metadata = {
-    title: "Staff Panel | Nol Coffee",
-    robots: "noindex, nofollow", // Pastikan tidak diindeks Google
+    title: "Admin Panel | Nol Coffee",
+    robots: "noindex, nofollow",
 };
 
-export default function StaffLayout({
+export default function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -14,6 +15,7 @@ export default function StaffLayout({
     return (
         <section className="relative min-h-screen">
             {children}
+            <AdminFloatingNav />
         </section>
     );
 }

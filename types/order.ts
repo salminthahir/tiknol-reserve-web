@@ -17,6 +17,7 @@ export interface Order {
   subtotal?: number;
   discountAmount: number;
   items: OrderItem[];
+  orderType: string; // "DINE_IN" | "TAKE_AWAY"
   status: 'PENDING' | 'PAID' | 'PREPARING' | 'READY' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED';
   snapToken: string | null;
   voucherId: string | null;

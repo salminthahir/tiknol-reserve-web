@@ -25,7 +25,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Employee account is inactive' }, { status: 403 });
     }
 
-    // Device Fingerprint Logic
+    // Device Fingerprint Logic (MODIFIED: Warning instead of blocking)
+    let deviceWarning = null;
     if (!employee.deviceId) {
       // First time login - Bind device
       await prisma.employee.update({
@@ -33,10 +34,8 @@ export async function POST(request: Request) {
         data: { deviceId: deviceId }
       });
     } else if (employee.deviceId !== deviceId) {
-      // Mismatch
-      return NextResponse.json({
-        error: 'Device mismatch. Please use your registered device or ask admin to reset.'
-      }, { status: 403 });
+      // Mismatch - ALLOW but warn
+      deviceWarning = 'Anda masuk dari device lain. Hubungi admin jika ini bukan Anda.';
     }
 
     // 2. Validate Location (Phase 3)
@@ -98,7 +97,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       attendance,
-      message: type === 'CLOCK_IN' ? `Selamat bekerja, ${employee.name}!` : `Terima kasih, ${employee.name}. Hati-hati di jalan!`
+      message: type === 'CLOCK_IN' ? `Selamat bekerja, ${employee.name}!` : `Terima kasih, ${employee.name}. Hati-hati di jalan!`,
+      warning: deviceWarning // NEW: Add warning field
     });
 
   } catch (error) {
