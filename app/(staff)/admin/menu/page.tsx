@@ -3,7 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Plus, Upload, Trash2, Edit2, LayoutGrid, List as ListIcon, Loader2, X, Check, Save } from 'lucide-react';
+import { Search, Plus, Upload, Trash2, Edit2, LayoutGrid, List as ListIcon, Loader2, X, Check, Save, DollarSign } from 'lucide-react';
+
+type Branch = { id: string; name: string; code: string };
+type BranchPriceEntry = { branchId: string; branchPrice: number | null; isAvailable: boolean };
 
 type Product = {
   id: string;
@@ -17,6 +20,7 @@ type Product = {
     temps: string[];
     sizes: string[];
   };
+  productBranches?: BranchPriceEntry[];
 };
 
 export default function MenuManagerPage() {
@@ -38,6 +42,11 @@ export default function MenuManagerPage() {
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Branch Pricing State
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchPrices, setBranchPrices] = useState<Record<string, string>>({});
+  const [branchAvailability, setBranchAvailability] = useState<Record<string, boolean>>({});
+
   // Form Data
   const [formData, setFormData] = useState({
     id: '',
@@ -52,18 +61,52 @@ export default function MenuManagerPage() {
     }
   });
 
+  const [currentUser, setCurrentUser] = useState<{ branchId: string; isGlobalAccess: boolean } | null>(null);
+
   // --- FETCH DATA ---
   useEffect(() => {
+    fetchUserSession();
     fetchProducts();
+    fetchBranches();
   }, []);
+
+  const fetchUserSession = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data);
+      }
+    } catch (e) { console.error("Session fetch error", e); }
+  };
+
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch('/api/branches');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setBranches(data);
+      }
+    } catch (err) { console.error('Failed to fetch branches:', err); }
+  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
+      // Fetch all products with their branch data
       const res = await fetch('/api/admin/products');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) setProducts(data);
+        if (Array.isArray(data)) {
+          // Calculate global availability: READY if at least one branch has it available
+          const mappedData = data.map((p: any) => ({
+            ...p,
+            isAvailable: p.productBranches && p.productBranches.length > 0
+              ? p.productBranches.some((pb: any) => pb.isAvailable)
+              : true // Default to true if no branch data (legacy/fallback)
+          }));
+          setProducts(mappedData);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -133,12 +176,37 @@ export default function MenuManagerPage() {
 
       if (res.ok) {
         const savedProduct = await res.json();
+
+        // Save branch prices (only in edit mode, because POST auto-creates with null prices)
+        if (editMode) {
+          // Iterate over ALL branches to save availability even if price is not set
+          for (const branch of branches) {
+            const branchId = branch.id;
+            const priceStr = branchPrices[branchId] || '';
+            const branchPrice = priceStr.trim() === '' ? null : Number(priceStr);
+            const isAvailable = branchAvailability[branchId] ?? true;
+
+            await fetch('/api/admin/products', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: formData.id,
+                branchId,
+                branchPrice,
+                isAvailable
+              })
+            });
+          }
+        }
+
         if (editMode) {
           setProducts(prev => prev.map(p => p.id === formData.id ? { ...savedProduct, isAvailable: p.isAvailable } : p));
         } else {
           setProducts(prev => [savedProduct, ...prev]);
         }
         setIsModalOpen(false);
+        // Refresh to get latest branch prices
+        fetchProducts();
       } else {
         alert("Failed to save product.");
       }
@@ -169,14 +237,28 @@ export default function MenuManagerPage() {
   };
 
   const toggleAvailability = async (product: Product) => {
-    // Optimistic
-    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, isAvailable: !p.isAvailable } : p));
+    // In Global View, toggling might be ambiguous if we don't know for which branch.
+    // BUT, the existing logic sends { isAvailable: !p.isAvailable } to PUT /products.
+    // The backend PUT handles this by updating ProductBranch based on... wait, the backend 
+    // requires 'branchId' to update ProductBranch. If no branchId, it updates Product (which now ignores isAvailable).
 
-    await fetch('/api/admin/products', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: product.id, isAvailable: !product.isAvailable }),
-    });
+    // CRITICAL FIX: The "Quick Toggle" on the main card/list doesn't specify a branch.
+    // It likely sends a request without branchId, which the backend now IGNORES for isAvailable.
+    // That's why it "does nothing".
+
+    // We must disable the Quick Toggle on the main list if it's a global view
+    // OR make it toggle for ALL branches (dangerous?)
+    // OR prompt to select branch.
+
+    // For now, let's ALERT the user that they must use Edit > Branch Toggle.
+    alert("Please use the EDIT button to manage availability per Branch.");
+    return;
+
+    /* 
+       Old Logic (Disabled because it doesn't work with Multi-Branch):
+       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, isAvailable: !p.isAvailable } : p));
+       await fetch('/api/admin/products', ...); 
+    */
   };
 
   const handleOpenModal = (product?: Product) => {
@@ -192,6 +274,23 @@ export default function MenuManagerPage() {
         customizationOptions: product.customizationOptions || { temps: ['ICE', 'HOT'], sizes: ['REGULAR'] }
       });
       setUploadPreview(product.image || null);
+
+      // Populate branch prices and availability from product data
+      const bpMap: Record<string, string> = {};
+      const baMap: Record<string, boolean> = {};
+
+      product.productBranches?.forEach(pb => {
+        bpMap[pb.branchId] = pb.branchPrice !== null ? pb.branchPrice.toString() : '';
+        baMap[pb.branchId] = pb.isAvailable;
+      });
+
+      // Initialize availability for all branches (default to true if not set)
+      branches.forEach(b => {
+        if (baMap[b.id] === undefined) baMap[b.id] = true;
+      });
+
+      setBranchPrices(bpMap);
+      setBranchAvailability(baMap);
     } else {
       setEditMode(false);
       setFormData({
@@ -204,6 +303,8 @@ export default function MenuManagerPage() {
         customizationOptions: { temps: ['ICE', 'HOT'], sizes: ['REGULAR'] }
       });
       setUploadPreview(null);
+      setBranchPrices({});
+      setBranchAvailability({});
     }
     setIsModalOpen(true);
   };
@@ -285,10 +386,11 @@ export default function MenuManagerPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredProducts.map(product => (
                 <div key={product.id} className="bg-white border-4 border-black group relative shadow-[6px_6px_0px_0px_#333] hover:-translate-y-1 transition-transform">
-                  {/* Available Toggle Badge */}
+                  {/* Available Badge (Click to Edit) */}
                   <button
-                    onClick={(e) => { e.stopPropagation(); toggleAvailability(product); }}
-                    className={`absolute top-3 right-3 z-10 px-3 py-1 font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_black] transition-all ${product.isAvailable ? 'bg-[#00E676] text-black' : 'bg-red-500 text-white'}`}
+                    onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }}
+                    className={`absolute top-3 right-3 z-10 px-3 py-1 font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_black] hover:scale-110 active:scale-95 transition-all ${product.isAvailable ? 'bg-[#00E676] text-black' : 'bg-red-500 text-white'}`}
+                    title="Click to manage Branch Availability"
                   >
                     {product.isAvailable ? 'READY' : 'SOLD OUT'}
                   </button>
@@ -345,8 +447,8 @@ export default function MenuManagerPage() {
                       <td className="p-4 text-right font-mono">Rp {product.price.toLocaleString()}</td>
                       <td className="p-4 text-center">
                         <button
-                          onClick={() => toggleAvailability(product)}
-                          className={`px-3 py-1 rounded text-xs font-black ${product.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                          onClick={() => handleOpenModal(product)}
+                          className={`px-3 py-1 rounded text-xs font-black hover:opacity-80 transition-opacity ${product.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                         >
                           {product.isAvailable ? 'ACTIVE' : 'INACTIVE'}
                         </button>
@@ -530,6 +632,64 @@ export default function MenuManagerPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Branch Pricing & Availability Section */}
+                {editMode && branches.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign size={16} className="text-[#FBC02D]" />
+                      <span className="font-black text-xs uppercase">Ketersediaan & Harga Per Cabang</span>
+                    </div>
+                    <div className="space-y-2">
+                      {branches
+                        .filter(b => {
+                          // If global access, show all. If not, only show user's branch
+                          if (!currentUser) return false;
+                          if (currentUser.isGlobalAccess) return true;
+                          // Check if user is explicit "Head Office" logic? 
+                          // For now, rely on isGlobalAccess + matching branchId
+                          return b.id === currentUser.branchId;
+                        })
+                        .map(branch => {
+                          const isAvail = branchAvailability[branch.id] ?? true;
+                          return (
+                            <div key={branch.id} className={`flex items-center gap-3 border rounded-lg p-2.5 transition-colors ${isAvail ? 'bg-gray-50 border-gray-200' : 'bg-red-50 border-red-200'}`}>
+                              <div className="flex-1">
+                                <p className={`font-bold text-xs uppercase ${!isAvail && 'text-red-500 line-through'}`}>{branch.name}</p>
+                                <p className="text-[10px] text-gray-400">{branch.code}</p>
+                              </div>
+
+                              {/* Availability Toggle */}
+                              <label className="flex items-center gap-2 cursor-pointer mr-2">
+                                <div className={`w-8 h-4 rounded-full relative transition-colors ${isAvail ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                  <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${isAvail ? 'left-4.5' : 'left-0.5'}`} style={{ left: isAvail ? '18px' : '2px' }}></div>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  className="hidden"
+                                  checked={isAvail}
+                                  onChange={e => setBranchAvailability(prev => ({ ...prev, [branch.id]: e.target.checked }))}
+                                />
+                                <span className="text-[10px] font-bold uppercase w-12">{isAvail ? 'READY' : 'EMPTY'}</span>
+                              </label>
+
+                              <div className="relative w-32">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">Rp</span>
+                                <input
+                                  type="number"
+                                  disabled={!isAvail}
+                                  placeholder={formData.price || '0'}
+                                  value={branchPrices[branch.id] || ''}
+                                  onChange={e => setBranchPrices(prev => ({ ...prev, [branch.id]: e.target.value }))}
+                                  className="w-full border-2 border-gray-300 rounded p-1.5 pl-7 font-mono font-bold text-sm focus:outline-none focus:border-black text-right disabled:bg-gray-100 disabled:text-gray-400"
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"

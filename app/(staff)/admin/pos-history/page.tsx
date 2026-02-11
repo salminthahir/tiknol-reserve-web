@@ -28,11 +28,51 @@ export default function POSHistoryPage() {
   // UI States
   const [showFilters, setShowFilters] = useState(false);
 
+  // Multi-Branch State
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<{ isGlobalAccess: boolean; branchId: string } | null>(null);
+
+  // Fetch Session & Branches
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const sessionRes = await fetch('/api/auth/me');
+        if (sessionRes.ok) {
+          const user = await sessionRes.json();
+          setCurrentUser(user);
+
+          if (user.isGlobalAccess) {
+            const branchRes = await fetch('/api/branches');
+            if (branchRes.ok) {
+              const branchData = await branchRes.json();
+              setBranches(branchData);
+              // Default to home branch or first
+              if (user.branchId) setSelectedBranchId(user.branchId);
+              else if (branchData.length > 0) setSelectedBranchId(branchData[0].id);
+            }
+          } else {
+            setSelectedBranchId(user.branchId);
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    init();
+  }, []);
+
   // Fetch Orders
   useEffect(() => {
     const fetchOrders = async () => {
+      // Wait for branch selection if global access
+      if (currentUser?.isGlobalAccess && !selectedBranchId) return;
+
       try {
-        const res = await fetch('/api/admin/pos-history');
+        setLoading(true);
+        const url = currentUser?.isGlobalAccess
+          ? `/api/admin/pos-history?branchId=${selectedBranchId}`
+          : `/api/admin/pos-history`;
+
+        const res = await fetch(url);
         if (!res.ok) {
           throw new Error(`Failed to fetch POS history: Status ${res.status}`);
         }
@@ -49,8 +89,12 @@ export default function POSHistoryPage() {
         setLoading(false);
       }
     };
-    fetchOrders();
-  }, []);
+
+    // Trigger fetch only when we have necessary branch context
+    if (selectedBranchId || (currentUser && !currentUser.isGlobalAccess)) {
+      fetchOrders();
+    }
+  }, [selectedBranchId, currentUser]);
 
   // Filter & Sort Logic
   const filteredAndSortedOrders = useMemo(() => {
@@ -181,9 +225,23 @@ export default function POSHistoryPage() {
       <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04),0_6px_16px_rgba(0,0,0,0.06)] border-2 border-gray-200 p-5 mb-4">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">
-              <span className="text-[#FD5A46] text-3xl">.</span>NOL <span className="text-[#552CB7]">HISTORY</span>
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">
+                <span className="text-[#FD5A46] text-3xl">.</span>NOL <span className="text-[#552CB7]">HISTORY</span>
+              </h1>
+
+              {currentUser?.isGlobalAccess && (
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="bg-white border-2 border-gray-200 rounded-lg px-3 py-1 font-bold text-sm focus:outline-none focus:border-[#552CB7]"
+                >
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <p className="text-sm text-gray-500 mt-1">
               {filteredAndSortedOrders.length} transaksi ditemukan
             </p>

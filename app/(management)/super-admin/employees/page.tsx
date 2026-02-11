@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
     Plus, Search, User, Smartphone, Shield, Check, X,
-    MoreHorizontal, SmartphoneNfc, Trash2, Edit, AlertTriangle
+    MoreHorizontal, SmartphoneNfc, Trash2, Edit, AlertTriangle, Store
 } from 'lucide-react';
 import EmployeeSkeleton from '@/app/components/skeletons/EmployeeSkeleton';
 
@@ -15,11 +15,20 @@ interface Employee {
     role: string;
     deviceId: string | null;
     isActive: boolean;
+    branchId: string;
+    branch?: { id: string, name: string };
+    isGlobalAccess: boolean;
+    accessibleBranches: { branchId: string }[];
     _count: { attendances: number };
 }
 
+
+
+
 export default function EmployeesPage() {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [branches, setBranches] = useState<any[]>([]); // Branch List
+    const [selectedBranch, setSelectedBranch] = useState<string>('ALL'); // Filter State
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -29,8 +38,12 @@ export default function EmployeesPage() {
     const [activeTab, setActiveTab] = useState<'STAFF' | 'ADMIN'>('STAFF');
 
     // Form Data with PIN support
-    const [formData, setFormData] = useState<{ id: string, name: string, whatsapp: string, role: string, pin?: string }>({
-        id: '', name: '', whatsapp: '', role: 'STAFF', pin: ''
+    const [formData, setFormData] = useState<{
+        id: string, name: string, whatsapp: string, role: string, pin?: string,
+        branchId: string, isGlobalAccess: boolean, accessibleBranchIds: string[]
+    }>({
+        id: '', name: '', whatsapp: '', role: 'STAFF', pin: '',
+        branchId: '', isGlobalAccess: false, accessibleBranchIds: []
     });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +69,8 @@ export default function EmployeesPage() {
     const fetchEmployees = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/employees');
+            const query = selectedBranch !== 'ALL' ? `?branchId=${selectedBranch}` : '';
+            const res = await fetch(`/api/admin/employees${query}`);
             const data = await res.json();
             setEmployees(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -67,10 +81,16 @@ export default function EmployeesPage() {
         }
     };
 
+    // Fetch Branches
     useEffect(() => {
-        fetchEmployees();
+        fetch('/api/branches').then(res => res.json()).then(data => setBranches(Array.isArray(data) ? data : []));
     }, []);
 
+    useEffect(() => {
+        fetchEmployees();
+    }, [selectedBranch]);
+
+    // --- HANDLES ---
     // --- HANDLES ---
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -78,26 +98,89 @@ export default function EmployeesPage() {
         try {
             const url = '/api/admin/employees';
             const method = editingId ? 'PATCH' : 'POST';
-            const body = editingId
-                ? { ...formData, oldId: editingId, action: 'UPDATE_PROFILE' }
-                : formData;
 
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
+            // Prepare Payload
+            const payload: any = { ...formData };
+            if (editingId) {
+                payload.oldId = editingId;
+                payload.action = 'UPDATE_PROFILE'; // Or separate action for Access?
+                // The API supports combining profile + access updates if we send all fields.
+                // Re-check API: POST accepts all. PATCH 'UPDATE_PROFILE' accepts branchId. 
+                // But `isGlobalAccess` and `accessibleBranches` were handled in 'UPDATE_ACCESS'.
+                // To allow saving ALL in one go, we might need to send 2 requests or update API.
+                // Let's check API again. 
+                // API PATCH: 'UPDATE_PROFILE' handles branchId. 'UPDATE_ACCESS' handles isGlobalAccess/accessibleBranches.
+                // So for Edit, we might need to do 'UPDATE_PROFILE' AND 'UPDATE_ACCESS'.
+                // OR simpler: changing API to allow 'UPDATE_PROFILE' to handle everything?
+                // For now, let's assume we send 'UPDATE_ACCESS' immediately after 'UPDATE_PROFILE' if needed, or implement a combined 'UPDATE_ALL' later.
+                // Actually, let's just use 'UPDATE_ACCESS' for access fields.
+            }
+
+            // Strategy: For Edit, if access fields changed, we need to call UPDATE_ACCESS.
+            // Simplified: Just always call UPDATE_PROFILE then UPDATE_ACCESS if needed?
+            // Actually, better to just update API to handle all in UPDATE_PROFILE? No, keep concerns separated.
+            // Let's try sending everything in 'UPDATE_PROFILE' and see if API handles it? API code:
+            // if (action === 'UPDATE_PROFILE') { ... branchId: data.branchId ... } -> Only branchId.
+            // So 'UPDATE_ACCESS' is required for isGlobalAccess / accessibleBranches.
+
+            // Let's trigger UPDATE_ACCESS first? Or sequential?
+            // Let's do:
+            // 1. If Edit:
+            //    - Call PATCH UPDATE_PROFILE
+            //    - Call PATCH UPDATE_ACCESS
+            // 2. If Create: POST (handles all)
+
+            let res;
+            if (editingId) {
+                // 1. Update Profile
+                const resProfile = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: formData.id, oldId: editingId, action: 'UPDATE_PROFILE',
+                        name: formData.name, whatsapp: formData.whatsapp, role: formData.role, pin: formData.pin, branchId: formData.branchId
+                    })
+                });
+
+                if (!resProfile.ok) throw new Error('Failed to update profile');
+
+                // 2. Update Access
+                res = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: formData.id, // Use new ID
+                        action: 'UPDATE_ACCESS',
+                        branchId: formData.branchId, // Redundant but safe
+                        isGlobalAccess: formData.isGlobalAccess,
+                        accessibleBranchIds: formData.accessibleBranchIds
+                    })
+                });
+
+            } else {
+                // Create
+                res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+            }
 
             if (res.ok) {
                 setShowModal(false);
-                setFormData({ id: '', name: '', whatsapp: '', role: 'STAFF', pin: '' });
+                setFormData({
+                    id: '', name: '', whatsapp: '', role: 'STAFF', pin: '',
+                    branchId: '', isGlobalAccess: false, accessibleBranchIds: []
+                });
                 setEditingId(null);
                 fetchEmployees();
             } else {
-                alert('Failed to save employee.');
+                const err = await res.json();
+                alert('Failed: ' + (err.error || err.message));
             }
-        } catch (err) {
-            alert('Error occurred.');
+        } catch (err: any) {
+            console.error(err);
+            alert('Error occurred: ' + err.message);
         } finally {
             setIsSubmitting(false);
         }
@@ -179,22 +262,28 @@ export default function EmployeesPage() {
     const openModal = (emp?: Employee) => {
         if (emp) {
             setEditingId(emp.id);
-            // Don't pre-fill PIN for security, leave blank to keep unchanged
             setFormData({
                 id: emp.id,
                 name: emp.name,
                 whatsapp: emp.whatsapp,
                 role: emp.role || 'STAFF',
-                pin: ''
+                pin: '',
+                branchId: emp.branchId || '',
+                isGlobalAccess: emp.isGlobalAccess || false,
+                accessibleBranchIds: emp.accessibleBranches?.map(b => b.branchId) || []
             });
-            // If editing an admin, switch tab to admin context if not already
             if (emp.role === 'ADMIN' || emp.role === 'MANAGER') setActiveTab('ADMIN');
         } else {
             console.log("Opening New Member modal");
             setEditingId(null);
-            // Default Role based on Active Tab
             const defaultRole = activeTab === 'ADMIN' ? 'ADMIN' : 'STAFF';
-            setFormData({ id: '', name: '', whatsapp: '', role: defaultRole, pin: '' });
+            // Pre-select first branch if available
+            const defaultBranch = branches.length > 0 ? branches[0].id : '';
+
+            setFormData({
+                id: '', name: '', whatsapp: '', role: defaultRole, pin: '',
+                branchId: defaultBranch, isGlobalAccess: false, accessibleBranchIds: []
+            });
         }
         setShowModal(true);
     };
@@ -243,16 +332,34 @@ export default function EmployeesPage() {
                 <EmployeeSkeleton />
             ) : (
                 <>
-                    {/* Search Bar */}
-                    <div className="bg-white dark:bg-[#111] p-4 rounded-xl border border-gray-100 dark:border-[#222] shadow-sm mb-8 relative">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder={activeTab === 'ADMIN' ? "Search admins..." : "Search employees..."}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-transparent border-none outline-none font-bold text-sm dark:text-white"
-                        />
+                    {/* Filters & Search */}
+                    <div className="flex flex-col md:flex-row gap-4 mb-8">
+                        {/* Search Bar */}
+                        <div className="flex-1 bg-white dark:bg-[#111] p-4 rounded-xl border border-gray-100 dark:border-[#222] shadow-sm relative">
+                            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder={activeTab === 'ADMIN' ? "Search admins..." : "Search employees..."}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-transparent border-none outline-none font-bold text-sm dark:text-white"
+                            />
+                        </div>
+
+                        {/* Branch Selector */}
+                        <div className="bg-white dark:bg-[#111] p-4 rounded-xl border border-gray-100 dark:border-[#222] shadow-sm min-w-[200px] flex items-center gap-3">
+                            <Store size={18} className="text-gray-400" />
+                            <select
+                                value={selectedBranch}
+                                onChange={(e) => setSelectedBranch(e.target.value)}
+                                className="bg-transparent font-bold text-sm outline-none w-full dark:text-white cursor-pointer"
+                            >
+                                <option value="ALL">All Branches</option>
+                                {branches.map((b: any) => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Employee Grid */}
@@ -278,7 +385,11 @@ export default function EmployeesPage() {
                                                 {emp.name}
                                                 {emp.role === 'ADMIN' && <Shield size={14} className="text-[#FFBF00]" fill="#FFBF00" />}
                                             </h3>
-                                            <p className="text-xs font-mono text-gray-400">ID: {emp.id}</p>
+                                            <p className="text-xs font-mono text-gray-400">
+                                                ID: {emp.id}
+                                                <span className="mx-2">•</span>
+                                                <span className="text-[#FFBF00] font-bold">{emp.branch?.name || 'Head Office'}</span>
+                                            </p>
                                         </div>
                                     </div>
 
@@ -327,14 +438,14 @@ export default function EmployeesPage() {
 
             {/* FORM MODAL */}
             {showModal && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-[#111] w-full max-w-md rounded-3xl p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-gray-100 dark:border-[#222]">
-                        <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white dark:bg-[#111] w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-gray-100 dark:border-[#222] my-auto max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-gray-400 hover:text-black dark:hover:text-white transition-colors z-10 sticky">
                             <X size={24} />
                         </button>
 
-                        <h2 className="text-2xl font-black mb-1 dark:text-white">{editingId ? 'Edit Profile' : (activeTab === 'ADMIN' ? 'New Admin' : 'New Member')}</h2>
-                        <p className="text-sm text-gray-500 mb-8">Fill in the details below.</p>
+                        <h2 className="text-2xl font-black mb-1 dark:text-white pt-2">{editingId ? 'Edit Profile' : (activeTab === 'ADMIN' ? 'New Admin' : 'New Member')}</h2>
+                        <p className="text-sm text-gray-500 mb-6">Fill in the details below.</p>
 
                         <form onSubmit={handleSave} className="space-y-6">
                             {editingId && (
@@ -368,6 +479,66 @@ export default function EmployeesPage() {
                                     className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-none rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 focus:ring-[#FFBF00] dark:text-white"
                                     placeholder="08..."
                                 />
+                            </div>
+
+                            {/* HOME BRANCH SELECTION */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase tracking-widest text-gray-400">Home Branch</label>
+                                <select
+                                    required
+                                    value={formData.branchId || ''}
+                                    onChange={e => setFormData({ ...formData, branchId: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-none rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 focus:ring-[#FFBF00] dark:text-white appearance-none cursor-pointer"
+                                >
+                                    <option value="">Select Primary Branch</option>
+                                    {branches.map((b: any) => (
+                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* ACCESS CONTROL */}
+                            <div className="p-4 rounded-xl border border-gray-100 dark:border-[#222] bg-gray-50/50 dark:bg-[#1A1A1A]/50 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-bold uppercase tracking-widest text-gray-400">Global Access</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, isGlobalAccess: !prev.isGlobalAccess }))}
+                                        className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${formData.isGlobalAccess ? 'bg-[#FFBF00]' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                    >
+                                        <div className={`w-4 h-4 bg-white rounded-full transition-transform ${formData.isGlobalAccess ? 'translate-x-6' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-400">
+                                    {formData.isGlobalAccess
+                                        ? "This employee can access ALL branches."
+                                        : "Select specific branches this employee can access besides their home branch."}
+                                </p>
+
+                                {!formData.isGlobalAccess && (
+                                    <div className="space-y-2 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                                        {branches.filter((b: any) => b.id !== formData.branchId).map((branch: any) => (
+                                            <label key={branch.id} className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-[#222] rounded-lg cursor-pointer transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.accessibleBranchIds?.includes(branch.id)}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            accessibleBranchIds: checked
+                                                                ? [...(prev.accessibleBranchIds || []), branch.id]
+                                                                : (prev.accessibleBranchIds || []).filter(id => id !== branch.id)
+                                                        }));
+                                                    }}
+                                                    className="w-4 h-4 rounded border-gray-300 text-[#FFBF00] focus:ring-[#FFBF00]"
+                                                />
+                                                <span className="text-xs font-bold">{branch.name}</span>
+                                            </label>
+                                        ))}
+                                        {branches.length === 0 && <p className="text-xs text-red-500">No branches available.</p>}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Role Selection */}

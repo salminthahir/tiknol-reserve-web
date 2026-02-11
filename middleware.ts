@@ -47,6 +47,46 @@ export function middleware(request: NextRequest) {
       // Jika request Page -> Redirect Login
       return NextResponse.redirect(new URL('/login', request.url));
     }
+
+    // --- NEW: Branch Access Validation (The "Satpam") ---
+    // Only check if specific branch is requested via query param
+    const targetBranchId = searchParams.get('branchId');
+    if (targetBranchId && hasStaffSession) {
+      try {
+        const sessionCookie = request.cookies.get('staff_session')?.value;
+        if (sessionCookie) {
+          const session = JSON.parse(sessionCookie);
+
+          // 1. Global Access?
+          if (session.isGlobalAccess) {
+            // Safe to proceed
+          }
+          // 2. Home Branch?
+          else if (session.branchId === targetBranchId) {
+            // Safe to proceed
+          }
+          // 3. Additional Access?
+          else if (session.additionalAccess && Array.isArray(session.additionalAccess)) {
+            const hasAccess = session.additionalAccess.some((acc: any) => acc.branchId === targetBranchId);
+            if (!hasAccess) {
+              if (request.nextUrl.pathname.startsWith('/api/')) {
+                return NextResponse.json({ error: 'Access Denied to this Branch' }, { status: 403 });
+              }
+              return NextResponse.redirect(new URL('/unauthorized', request.url));
+            }
+          }
+          else {
+            // No matching access found
+            if (request.nextUrl.pathname.startsWith('/api/')) {
+              return NextResponse.json({ error: 'Access Denied to this Branch' }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL('/unauthorized', request.url));
+          }
+        }
+      } catch (e) {
+        // Cookie parse error, treat as unauthorized maybe? Or ignore.
+      }
+    }
   }
 
   return NextResponse.next();

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { customAlphabet } from 'nanoid'; // Import customAlphabet
 
+import { cookies } from "next/headers"; // Import cookies
+
 // Buat generator ID dengan alphabet huruf besar (A-Z) dan angka (0-9)
 const generateOrderId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 15);
 
@@ -10,6 +12,21 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const { customerName, whatsapp, totalAmount, items, orderType, voucherId, subtotal, discountAmount } = await request.json();
+
+    // 1. Get Branch from Session
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('staff_session');
+
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Unauthorized: No active session" }, { status: 401 });
+    }
+
+    const session = JSON.parse(sessionCookie.value);
+    const branchId = session.branchId;
+
+    if (!branchId) {
+      return NextResponse.json({ error: "Unauthorized: No branch context" }, { status: 403 });
+    }
 
     // Validation
     if (!customerName || !totalAmount || !items || items.length === 0) {
@@ -22,6 +39,7 @@ export async function POST(request: Request) {
     const newOrder = await prisma.order.create({
       data: {
         id: customOrderId,
+        branchId, // Enforce Branch
         customerName,
         whatsapp,
         orderType: orderType || 'DINE_IN',

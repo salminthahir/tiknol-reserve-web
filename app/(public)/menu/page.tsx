@@ -3,10 +3,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingBag, X, Plus, Minus, ArrowLeft, User, Phone, Search, Star, ArrowRight, Check, ChevronUp, Ghost, Sparkles, Smile, CircleDot, Waves, Fish } from 'lucide-react';
+import { ShoppingBag, X, Plus, Minus, ArrowLeft, User, Phone, Search, Star, ArrowRight, Check, ChevronUp, Ghost, Sparkles, Smile, CircleDot, Waves, Fish, MapPin } from 'lucide-react';
 import CheckoutButton from '@/components/CheckoutButton';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { OrderItem } from '@/types/order';
+import { useBranch } from '@/app/context/BranchContext';
+import BranchSelector from '@/components/BranchSelector';
 
 // --- TIPE DATA ---
 type Product = {
@@ -36,6 +38,7 @@ type CartItem = Product & {
 };
 
 function MenuContent() {
+  const { selectedBranch, setBranch } = useBranch();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -65,12 +68,22 @@ function MenuContent() {
   // --- FETCH DATA ---
   useEffect(() => {
     const fetchProducts = async () => {
+      // Don't fetch if no branch selected
+      if (!selectedBranch) {
+        setProducts([]);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        const res = await fetch('/api/admin/products');
+        const res = await fetch(`/api/products?branchId=${selectedBranch.id}`);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || `HTTP Error: ${res.status}`);
+        }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.details || `HTTP Error: ${res.status}`);
-        if (Array.isArray(data)) setProducts(data.filter((p: any) => p.isAvailable));
+        if (Array.isArray(data)) setProducts(data);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -79,17 +92,13 @@ function MenuContent() {
     };
 
     if (!orderId) fetchProducts();
-  }, [orderId]);
+  }, [orderId, selectedBranch]);
 
   // --- CART LOGIC ---
   const handleAddToCartClick = (product: Product) => {
-    // Use dynamic customization check from database config
     const needsCustomization = product.hasCustomization === true;
 
     if (needsCustomization) {
-      // Set default customization options from product config
-      // Set default customization options from product config
-      // Ensure we pick something that ACTUALLY exists in the options
       const availableTemps = product.customizationOptions?.temps || ['ICE', 'HOT'];
       const availableSizes = product.customizationOptions?.sizes || ['REGULAR'];
 
@@ -99,7 +108,6 @@ function MenuContent() {
       setTempCustom({ temp: defaultTemp as 'ICE' | 'HOT', size: defaultSize as any });
       setSelectedProduct(product);
     } else {
-      // Langsung masuk keranjang untuk kategori non-customizable
       const uniqueKey = `${product.id}-standard`;
       setCart((prev) => {
         const existing = prev.find((item) => item.uniqueKey === uniqueKey);
@@ -108,14 +116,12 @@ function MenuContent() {
         }
         return [...prev, { ...product, qty: 1, uniqueKey }];
       });
-      // Removed auto-open cart: setIsCartOpen(true);
     }
   };
 
   const confirmAddToCart = () => {
     if (!selectedProduct) return;
 
-    // Buat unique key berdasarkan ID + Varian
     const uniqueKey = `${selectedProduct.id}-${tempCustom.temp}-${tempCustom.size}`;
 
     setCart((prev) => {
@@ -129,7 +135,6 @@ function MenuContent() {
     });
 
     setSelectedProduct(null);
-    // Removed auto-open cart: setIsCartOpen(true);
   };
 
   const updateQty = (uniqueKey: string, delta: number) => {
@@ -152,7 +157,7 @@ function MenuContent() {
   });
 
   // --- RENDER LOADING / ERROR ---
-  if (orderId || (isLoading && !orderId)) return (
+  if (orderId || (isLoading && !orderId && selectedBranch)) return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-[#FBC02D]">
       <div className="w-12 h-12 border-2 border-[#FBC02D] border-t-transparent rounded-full animate-spin mb-4"></div>
       <h2 className="text-sm font-mono tracking-widest uppercase animate-pulse">Loading Menu...</h2>
@@ -169,8 +174,15 @@ function MenuContent() {
           <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg group-hover:border-[#FBC02D]/50 group-hover:bg-white/10 transition-all duration-500 transform group-hover:-translate-y-0.5">
             <h1 className="text-base font-black tracking-tighter text-white"><span className="text-[#FBC02D]">.</span>NOL</h1>
           </div>
-          <span className="font-light text-lg tracking-wider uppercase text-neutral-400 group-hover:text-white transition-colors duration-500">Reserve</span>
+          <span className="hidden md:inline font-light text-lg tracking-wider uppercase text-neutral-400 group-hover:text-white transition-colors duration-500">Reserve</span>
         </Link>
+
+        {/* Branch Selector */}
+        <BranchSelector
+          currentBranchId={selectedBranch?.id || null}
+          onSelect={setBranch}
+          className="mx-auto md:mx-0"
+        />
 
         <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all active:scale-95">
           <span className="text-xs font-bold uppercase">Tray</span>
@@ -211,7 +223,17 @@ function MenuContent() {
 
           {/* GRID */}
           <div className="p-4 md:p-8 pb-32 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {filteredProducts.map((product) => (
+            {!selectedBranch ? (
+              <div className="col-span-full h-64 flex flex-col items-center justify-center text-neutral-500">
+                <MapPin className="w-12 h-12 mb-4 opacity-50" />
+                <p className="font-mono uppercase tracking-widest">Select a location to view menu</p>
+              </div>
+            ) : filteredProducts.length === 0 && !isLoading ? (
+              <div className="col-span-full h-64 flex flex-col items-center justify-center text-neutral-500">
+                <Ghost size={48} className="mb-4 opacity-50" />
+                <p className="font-mono uppercase tracking-widest">No products found</p>
+              </div>
+            ) : filteredProducts.map((product) => (
               <div key={product.id} onClick={() => handleAddToCartClick(product)} className="group relative bg-[#111] border border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer">
                 <div className="relative aspect-square overflow-hidden bg-[#1a1a1a]">
                   <Image src={product.image || '/placeholder.svg'} alt={product.name} fill sizes="20vw" className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-80 group-hover:opacity-100" />
@@ -260,7 +282,6 @@ function MenuContent() {
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Select Temperature</p>
                     <div className="grid grid-cols-2 gap-3">
                       {(['ICE', 'HOT'] as const).map((t) => {
-                        // FILTER: Only show enabled temps. If undefined, show all (backwards compat)
                         const isEnabled = selectedProduct?.customizationOptions?.temps?.includes(t) ?? true;
                         if (!isEnabled) return null;
 
@@ -273,7 +294,7 @@ function MenuContent() {
                     </div>
                   </div>
 
-                  {/* SIZE LEVEL - CREATIVE & LEBAY VERSION */}
+                  {/* SIZE LEVEL */}
                   <div className="space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Scale Your Caffeine</p>
                     <div className="grid grid-cols-3 gap-2">
@@ -308,7 +329,6 @@ function MenuContent() {
                           )
                         }
                       ].map((s) => {
-                        // FILTER: Only show enabled sizes. If undefined, show all.
                         const isEnabled = selectedProduct?.customizationOptions?.sizes?.includes(s.id) ?? true;
                         if (!isEnabled) return null;
 
@@ -399,7 +419,7 @@ function MenuContent() {
               <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Total Amount</span>
               <span className="text-2xl font-black text-white tracking-tighter"><span className="text-[#FBC02D] text-sm mr-1">IDR</span>{totalAmount.toLocaleString()}</span>
             </div>
-            <CheckoutButton items={cart} total={totalAmount} customerName={customerName} whatsapp={whatsapp} disabled={!isFormValid} />
+            <CheckoutButton items={cart} total={totalAmount} customerName={customerName} whatsapp={whatsapp} disabled={!isFormValid} branchId={selectedBranch?.id} />
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
     try {
-        const { code, cartTotal, items } = await req.json();
+        const { code, cartTotal, items, branchId } = await req.json();
 
         if (!code || cartTotal === undefined) {
             return NextResponse.json(
@@ -107,6 +107,30 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({
                     valid: false,
                     message: 'Voucher tidak berlaku untuk item yang dipilih'
+                });
+            }
+        }
+
+        // NEW: Check applicable Branches (if specified)
+        // branchId already extracted from first req.json() call at line 7
+
+        if (voucher.applicableBranches && Array.isArray(voucher.applicableBranches) && (voucher.applicableBranches as string[]).length > 0) {
+            const allowedBranches = voucher.applicableBranches as string[];
+
+            if (!branchId) {
+                // If voucher depends on branch, but branchId not allowed/provided
+                // Assuming strict mode: if branch specific, must provide branchId
+                return NextResponse.json({
+                    valid: false,
+                    message: 'Voucher ini butuh informasi cabang'
+                });
+            }
+
+            if (!allowedBranches.includes(branchId)) {
+                // Fetch branch name for better error message (Optional, skip for performance)
+                return NextResponse.json({
+                    valid: false,
+                    message: 'Voucher tidak berlaku di cabang ini'
                 });
             }
         }

@@ -11,11 +11,18 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customerName, whatsapp, items, orderType, voucherId, subtotal, discountAmount } = body;
+    const { customerName, whatsapp, items, orderType, voucherId, subtotal, discountAmount, branchId } = body;
+
+    // Validation
+    if (!branchId) {
+      return NextResponse.json({ error: "Branch ID is required" }, { status: 400 });
+    }
 
     // Calculate totalAmount from items
     const calculatedTotal = items.reduce((acc: number, item: any) => {
-      return acc + (item.price * item.qty);
+      const price = item.price || 0;
+      const qty = item.qty || 1;
+      return acc + (price * qty);
     }, 0);
 
     // Use provided subtotal/discount if voucher applied, otherwise use calculated total
@@ -30,6 +37,7 @@ export async function POST(request: Request) {
     const newOrder = await prisma.order.create({
       data: {
         id: customOrderId,
+        branchId, // Enforce Branch
         customerName,
         whatsapp,
         orderType: orderType || 'DINE_IN',
@@ -40,6 +48,7 @@ export async function POST(request: Request) {
         status: "PENDING",
         paymentType: "QRIS",
         voucherId: voucherId || null,
+        orderSource: "WEB_CUSTOMER",
       },
     });
 

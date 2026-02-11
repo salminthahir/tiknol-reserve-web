@@ -10,7 +10,8 @@ import {
     Users,
     Settings,
     Clock,
-    LogOut
+    LogOut,
+    Building2
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -30,6 +31,7 @@ export default function SuperAdminLayout({
     const menuItems = [
         { href: '/super-admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/super-admin/revenue', label: 'Revenue Analytics', icon: <TrendingUp size={20} /> },
+        { href: '/super-admin/branches', label: 'Branch Management', icon: <Building2 size={20} /> },
         { href: '/super-admin/vouchers', label: 'Voucher Manager', icon: <Ticket size={20} /> },
         { href: '/super-admin/employees', label: 'Employee & Access', icon: <Users size={20} /> },
         { href: '/super-admin/attendance', label: 'Attendance Log', icon: <Clock size={20} /> },

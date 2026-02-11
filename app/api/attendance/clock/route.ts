@@ -14,7 +14,8 @@ export async function POST(request: Request) {
 
     // 1. Validate Employee & Device Binding
     const employee = await prisma.employee.findUnique({
-      where: { id: employeeId }
+      where: { id: employeeId },
+      include: { branch: true } // Fetch Branch Info
     });
 
     if (!employee) {
@@ -38,14 +39,14 @@ export async function POST(request: Request) {
       deviceWarning = 'Anda masuk dari device lain. Hubungi admin jika ini bukan Anda.';
     }
 
-    // 2. Validate Location (Phase 3)
-    const settings = await prisma.settings.findFirst();
-    if (settings && settings.officeLatitude && settings.officeLongitude) {
+    // 2. Validate Location (BRANCH BASED)
+    const branch = employee.branch;
+    if (branch && branch.latitude && branch.longitude) {
       const R = 6371e3; // metres
-      const lat1 = settings.officeLatitude * Math.PI / 180;
+      const lat1 = branch.latitude * Math.PI / 180;
       const lat2 = latitude * Math.PI / 180;
-      const deltaLat = (latitude - settings.officeLatitude) * Math.PI / 180;
-      const deltaLon = (longitude - settings.officeLongitude) * Math.PI / 180;
+      const deltaLat = (latitude - branch.latitude) * Math.PI / 180;
+      const deltaLon = (longitude - branch.longitude) * Math.PI / 180;
 
       const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
         Math.cos(lat1) * Math.cos(lat2) *
@@ -53,13 +54,20 @@ export async function POST(request: Request) {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c; // in meters
 
-      console.log(`Distance: ${distance}m, Max: ${settings.maxRadius}m`);
+      const maxRadius = branch.maxRadius || 100;
 
-      if (distance > settings.maxRadius) {
+      console.log(`[Attendance] ${employee.name} at ${distance.toFixed(2)}m from ${branch.name} (Max: ${maxRadius}m)`);
+
+      if (distance > maxRadius) {
         return NextResponse.json({
-          error: `Diluar jangkauan kantor. Jarak: ${Math.round(distance)}m (Max: ${settings.maxRadius}m).`
+          error: `Diluar jangkauan ${branch.name}. Jarak: ${Math.round(distance)}m (Max: ${maxRadius}m).`
         }, { status: 403 });
       }
+    } else {
+      // Fallback or Error if branch has no location set?
+      // For now, let's allow but log warning or return error if strict.
+      // Assuming all branches must have location.
+      console.warn(`[Attendance] Branch ${branch?.name} has no location set. Skipping geofencing.`);
     }
 
     // 3. Process Image
@@ -84,13 +92,14 @@ export async function POST(request: Request) {
     const attendance = await prisma.attendance.create({
       data: {
         employeeId,
+        branchId: employee.branchId, // SAVE BRANCH ID
         type,
         timestamp: new Date(), // Server Time
         photoUrl,
         latitude,
         longitude,
         deviceId,
-        status: 'APPROVED' // Auto-approve for now, can change to PENDING if logic requires
+        status: 'APPROVED' // Auto-approve for now
       }
     });
 
@@ -98,7 +107,7 @@ export async function POST(request: Request) {
       success: true,
       attendance,
       message: type === 'CLOCK_IN' ? `Selamat bekerja, ${employee.name}!` : `Terima kasih, ${employee.name}. Hati-hati di jalan!`,
-      warning: deviceWarning // NEW: Add warning field
+      warning: deviceWarning
     });
 
   } catch (error) {

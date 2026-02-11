@@ -85,16 +85,39 @@ export default function POSPage() {
   const [isVoucherExpanded, setIsVoucherExpanded] = useState(false);
   const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
 
+  // Branch Context
+  const [currentBranchId, setCurrentBranchId] = useState<string>('');
+  const [currentBranchName, setCurrentBranchName] = useState<string>('');
+
   // --- FETCH DATA ---
   useEffect(() => {
-    const fetchProducts = async () => {
+    const init = async () => {
+      // 1. Get current staff's branch from session
+      let branchId = '';
       try {
-        const res = await fetch('/api/admin/products');
+        const meRes = await fetch('/api/auth/me');
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.branchId) {
+            branchId = meData.branchId;
+            setCurrentBranchId(meData.branchId);
+            setCurrentBranchName(meData.branchName || '');
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch session:', err);
+      }
+
+      // 2. Fetch products with branch context for pricing
+      try {
+        const url = branchId
+          ? `/api/admin/products?branchId=${branchId}`
+          : '/api/admin/products';
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const data = await res.json();
         if (Array.isArray(data)) {
-          // Filter products that are available
-          setProducts(data.filter((p: any) => p.isAvailable));
+          setProducts(data.filter((p: any) => p.isAvailable !== false));
         }
       } catch (err: any) {
         console.error(err);
@@ -104,7 +127,7 @@ export default function POSPage() {
       }
     };
 
-    fetchProducts();
+    init();
   }, []);
 
 
@@ -445,6 +468,7 @@ export default function POSPage() {
             <div className="flex justify-between items-center px-1">
               <h1 className="text-xl font-black italic tracking-tighter uppercase text-black">
                 <span className="text-[#FD5A46] text-2xl">.</span>NOL <span className="text-[#552CB7]">POS</span> <span className="text-gray-600 font-normal text-sm">System</span>
+                {currentBranchName && <span className="block text-[10px] font-bold text-gray-400 tracking-wider not-italic">{currentBranchName}</span>}
               </h1>
               <div className="flex gap-2">
                 <Link href="/admin/menu" className="font-black text-[10px] bg-[#FFC567] text-black border-2 border-black px-3 py-1.5 rounded-full shadow-[1px_1px_0px_black] hover:translate-y-[1px] hover:shadow-none transition-all">MENU</Link>

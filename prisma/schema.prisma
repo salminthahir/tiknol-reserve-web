@@ -9,10 +9,69 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// 2. Model Order (CUMA BOLEH ADA SATU)
+// ============================================
+// MULTI-BRANCH MODELS
+// ============================================
+
+// NEW: Branch Model - Core of multi-branch system
+model Branch {
+  id              String   @id @default(cuid())
+  code            String   @unique // e.g., "JKT-01", "BDG-01"
+  name            String   // e.g., "Nol Coffee Jakarta Pusat"
+  address         String?
+  phone           String?
+  
+  // Geofencing per branch
+  latitude        Float    @default(0)
+  longitude       Float    @default(0)
+  maxRadius       Float    @default(100) // meter
+  
+  // Operational status
+  isActive        Boolean  @default(true)
+  openingHours    Json?    // { "monday": "08:00-22:00", ... }
+  
+  // Relations
+  orders          Order[]
+  employees       Employee[]       // Home Branch Employees
+  accessibleEmployees EmployeeAccess[] // Employees with specific access
+  attendances     Attendance[]
+  shifts          Shift[]
+  productBranches ProductBranch[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// NEW: ProductBranch - Junction table untuk product availability per branch
+model ProductBranch {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  
+  isAvailable Boolean  @default(true) // Per-branch availability toggle
+  branchPrice Int?     // Optional: override base price untuk branch ini
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([productId, branchId]) // 1 product only 1 record per branch
+  @@index([branchId, isAvailable])
+}
+
+// ============================================
+// UPDATED MODELS (MULTI-BRANCH)
+// ============================================
+
+// 2. Model Order (UPDATED)
 model Order {
   id           String   @id
  // ID Unik (misal: cmkp...)
+  
+  // NEW: Branch assignment
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id])
   
   // Data Customer
   customerName String
@@ -42,16 +101,22 @@ model Order {
   // Waktu
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  
+  // NEW: Indexes untuk query performance
+  @@index([branchId, status])
+  @@index([branchId, createdAt])
 }
 
 model Product {
   id          String   @id @default(cuid())
   name        String
   description String?
-  price       Int
+  price       Int      // Base price (bisa di-override per branch)
   image       String?  // URL gambar dari Supabase Storage
   category    String   // Misal: "Coffee", "Non-Coffee", "Snack"
-  isAvailable Boolean  @default(true) // Buat switch On/Off stok habis
+  
+  // REMOVED: Global isAvailable (pindah ke ProductBranch)
+  // isAvailable Boolean  @default(true) // DEPRECATED - use ProductBranch.isAvailable
   
   // Customization Config
   hasCustomization     Boolean @default(false)
@@ -59,10 +124,18 @@ model Product {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // NEW: Many-to-many dengan Branch
+  productBranches      ProductBranch[]
 }
 
 model Shift {
   id           String    @id @default(cuid())
+  
+  // NEW: Branch assignment
+  branchId     String
+  branch       Branch    @relation(fields: [branchId], references: [id])
+  
   cashierName  String
   startTime    DateTime  @default(now())
   endTime      DateTime? 
@@ -74,11 +147,10 @@ model Shift {
   
   status       String    @default("OPEN") // OPEN, CLOSED
   
-  // Relasi ke Order (Opsional, jika ingin track order masuk shift mana)
-  // Untuk fase ini, kita pakai filter by time range saja biar simpel
+  @@index([branchId, status])
 }
 
-// 4. Model Voucher (Sistem Diskon/Promosi)
+// 4. Model Voucher (Sistem Diskon/Promosi) - UPDATED
 model Voucher {
   id              String      @id @default(cuid())
   code            String      @unique
@@ -96,6 +168,10 @@ model Voucher {
   active          Boolean     @default(true)
   applicableItems     Json?       // Array of menu item IDs (optional)
   applicableCategories Json?      // Array of category names (optional)
+  
+  // NEW: Branch restriction (null = berlaku untuk semua branch)
+  applicableBranches   Json?       // Array of branch IDs: ["branch_id_1", "branch_id_2"]
+  
   happyHourStart      String?     // e.g., "14:00"
   happyHourEnd        String?     // e.g., "17:00"
   createdAt       DateTime    @default(now())
@@ -112,22 +188,53 @@ enum VoucherType {
   BUY_X_GET_Y
 }
 
-// 5. Model Karyawan (Attendance System)
+// 5. Model Karyawan (Attendance System) - UPDATED
 model Employee {
   id            String       @id // Manual Sequential ID: EMP-XXX
+  
+  // NEW: Branch assignment
+  branchId      String
+  branch        Branch       @relation(fields: [branchId], references: [id])
+  
   name          String
   whatsapp      String       @unique
   pin           String?      // Optional 4-digit PIN for extra security
   role          EmployeeRole @default(STAFF)
   deviceId      String?      // Stored device fingerprint
   isActive      Boolean      @default(true)
+  
+  // NEW: Multi-Branch Access Control
+  isGlobalAccess     Boolean          @default(false) // If true, can access ALL branches
+  accessibleBranches EmployeeAccess[] // Specific additional branches
+  
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   attendances   Attendance[]
+  
+  @@index([branchId, role])
+}
+
+// NEW: Junction table for Employee-Branch Access
+model EmployeeAccess {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  
+  @@unique([employeeId, branchId])
+  @@index([employeeId])
+  @@index([branchId])
 }
 
 model Attendance {
   id            String           @id @default(cuid())
+  
+  // NEW: Branch tracking (denormalized untuk query performance)
+  branchId      String
+  branch        Branch           @relation(fields: [branchId], references: [id])
+  
   employeeId    String
   employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   type          AttendanceType   // CLOCK_IN or CLOCK_OUT
@@ -139,6 +246,9 @@ model Attendance {
   status        AttendanceStatus @default(PENDING)
   notes         String?          // Admin notes for corrections
   createdAt     DateTime         @default(now())
+  
+  @@index([branchId, timestamp])
+  @@index([employeeId, timestamp])
 }
 
 enum EmployeeRole {
@@ -159,22 +269,20 @@ enum AttendanceStatus {
   CORRECTED  // Admin made manual adjustment
 }
 
-// 6. Model Settings (Config)
+// 6. Model Settings (Config) - DEPRECATED for branch-specific settings
 model Settings {
   id              String   @id @default(cuid())
   
-  // Store Information
-  storeName       String   @default("Nol Coffee")
-  storeAddress    String?
-  storePhone      String?
-  
-  // Super Admin Profile
+  // Global settings only (NOT per-branch)
   adminName       String   @default("Super Admin")
   
-  // Geofencing
-  officeLatitude  Float    @default(0) // Latitude Kantor
-  officeLongitude Float    @default(0) // Longitude Kantor
-  maxRadius       Float    @default(100) // Radius Absen (meter)
+  // DEPRECATED: Moved to Branch model
+  // storeName       String   @default("Nol Coffee")
+  // storeAddress    String?
+  // storePhone      String?
+  // officeLatitude  Float    @default(0)
+  // officeLongitude Float    @default(0)
+  // maxRadius       Float    @default(100)
   
   updatedAt       DateTime @updatedAt
 }

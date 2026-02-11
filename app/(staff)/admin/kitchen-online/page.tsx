@@ -6,6 +6,9 @@ import { Order, OrderItem } from '@/types/order'; // Import tipe data Order
 import { sendWhatsAppNotification } from '@/lib/whatsapp'; // Import fungsi notifikasi
 import KitchenSkeleton from '@/app/components/skeletons/KitchenSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+
+type Branch = { id: string; name: string; code: string };
 
 // Base URL aplikasi untuk URL tiket
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
@@ -19,18 +22,63 @@ const supabase = createClient(
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]); // Gunakan tipe data Order[]
   const [loading, setLoading] = useState(true);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<{ isGlobalAccess: boolean; branchId: string } | null>(null);
 
-  // Pindahkan deklarasi fungsi ke atas
+  // Fetch Session & Branches
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // 1. Get Session
+        const sessionRes = await fetch('/api/auth/me');
+        if (sessionRes.ok) {
+          const user = await sessionRes.json();
+          setCurrentUser(user);
+
+          // If global access, fetch branches
+          if (user.isGlobalAccess) {
+            const branchRes = await fetch('/api/branches');
+            if (branchRes.ok) {
+              const branchData = await branchRes.json();
+              setBranches(branchData);
+              // Default to user's home branch or first branch
+              if (user.branchId) setSelectedBranchId(user.branchId);
+              else if (branchData.length > 0) setSelectedBranchId(branchData[0].id);
+            }
+          } else {
+            // Not global, locked to home branch
+            setSelectedBranchId(user.branchId);
+          }
+        }
+      } catch (e) {
+        console.error("Init Error:", e);
+      }
+    };
+    init();
+  }, []);
+
+  // Fetch orders when selectedBranchId changes
+  useEffect(() => {
+    if (selectedBranchId || (currentUser && !currentUser.isGlobalAccess)) {
+      fetchOrders();
+    }
+  }, [selectedBranchId]);
+
   const fetchOrders = async () => {
+    if (!selectedBranchId && currentUser?.isGlobalAccess) return; // Wait for selection
+
     try {
-      const res = await fetch('/api/admin/orders');
+      const url = currentUser?.isGlobalAccess
+        ? `/api/admin/orders?branchId=${selectedBranchId}`
+        : `/api/admin/orders`;
+
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Failed to fetch orders: Status ${res.status}`);
       }
       const data: Order[] = await res.json();
 
-      // Parse the 'items' field only if it's a string.
-      // If it's already an object/array (from JSONB), use it directly.
       const parsedOrders = data.map(order => ({
         ...order,
         items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
@@ -40,26 +88,37 @@ export default function AdminDashboard() {
       setLoading(false);
     } catch (error: any) {
       console.error("Failed to fetch orders:", error);
-      alert(`Gagal mengambil data order: ${error.message || 'Unknown error'}. Silakan coba lagi.`);
+      // alert(`Gagal mengambil data order...`); // Suppress alert on init
       setLoading(false);
     }
   };
 
   useEffect(() => {
     console.log("AdminDashboard: Initializing useEffect for orders and Supabase Realtime.");
-    // 1. Ambil data awal
-    fetchOrders();
 
-    // 2. Channel untuk real-time update
+    // 3. Channel untuk real-time update — filtered by branch
+    // Only subscribe if we have a selectedBranchId (or if we are sure we want to listen to something)
+    if (!selectedBranchId && currentUser?.isGlobalAccess) return;
+
+    const targetBranchId = selectedBranchId || currentUser?.branchId;
+
+    const realtimeFilter: any = { event: '*', schema: 'public', table: 'Order' };
+
+    // If we have a target branch, filter by it. 
+    // If not global and no branch, something is wrong, but safety check:
+    if (targetBranchId) {
+      realtimeFilter.filter = `branchId=eq.${targetBranchId}`;
+    }
+
     const channel = supabase
-      .channel('realtime-admin-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Order' }, (payload) => {
+      .channel(`realtime-admin-orders-${targetBranchId || 'all'}`)
+      .on('postgres_changes', realtimeFilter, (payload) => {
         console.log('🔔 Supabase Realtime: Perubahan terdeteksi!', payload);
         fetchOrders(); // Panggil ulang fetchOrders setiap ada perubahan
       })
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
-          console.log('Admin dashboard terhubung ke Live Monitor!');
+          console.log(`Admin dashboard terhubung ke Live Monitor! (Branch: ${targetBranchId || 'ALL'})`);
         } else if (status === 'CHANNEL_ERROR') {
           console.error('Koneksi Live Monitor gagal:', err);
         } else {
@@ -71,7 +130,7 @@ export default function AdminDashboard() {
       console.log("AdminDashboard: Cleaning up Supabase Realtime channel.");
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedBranchId, currentUser]);
 
   // --- PAGINATION LOGIC ---
   const ITEMS_PER_PAGE = 50;
@@ -165,9 +224,27 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#F5F5F5] font-sans text-black p-4 lg:p-6">
       <header className="flex flex-col md:flex-row justify-between items-center mb-6 border-b-4 border-black pb-4 gap-4">
-        <h1 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-center md:text-left">
-          KITCHEN <span className="text-[#FBC02D]">CONTROL</span>
-        </h1>
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <h1 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-center md:text-left">
+            KITCHEN <span className="text-[#FBC02D]">CONTROL</span>
+          </h1>
+
+          {/* BRANCH SELECTOR (Only for Global Access / Super Admin) */}
+          {currentUser?.isGlobalAccess && (
+            <div className="relative">
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="appearance-none bg-white border-2 border-black rounded-lg px-4 py-1 pr-8 font-bold text-sm focus:outline-none shadow-[2px_2px_0px_black]"
+              >
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" size={16} />
+            </div>
+          )}
+        </div>
 
         {/* TABS NAVIGATION */}
         <div className="flex bg-white border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_black] p-1">

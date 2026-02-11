@@ -4,23 +4,51 @@ import { prisma } from "@/lib/prisma";
 export const runtime = 'nodejs';
 
 // 1. GET: Dipakai oleh POS & Admin Menu untuk ambil daftar menu terbaru
-export async function GET() {
+//    Supports optional ?branchId= for branch-specific pricing
+export async function GET(request: Request) {
   try {
-    const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' }, // Urutkan sesuai item terbaru (lebih aman)
+    const { searchParams } = new URL(request.url);
+    const branchId = searchParams.get('branchId');
+
+    // Build the query dynamically
+    const includeConfig = branchId
+      ? {
+        productBranches: {
+          where: { branchId },
+          select: { branchId: true, branchPrice: true, isAvailable: true }
+        }
+      }
+      : {
+        productBranches: {
+          select: { branchId: true, branchPrice: true, isAvailable: true }
+        }
+      };
+
+    const products = await (prisma as any).product.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: includeConfig
     });
+
+    // If branchId provided, transform price to use branch-specific override
+    if (branchId) {
+      const mapped = products.map((p: any) => {
+        const pb = p.productBranches?.[0];
+        return {
+          ...p,
+          price: pb?.branchPrice ?? p.price,
+          isAvailable: pb?.isAvailable ?? true,
+          productBranches: p.productBranches
+        };
+      });
+      return NextResponse.json(mapped);
+    }
+
     return NextResponse.json(products);
   } catch (error: any) {
-    // FIX: Log error sebagai string untuk menghindari TypeError jika error-nya null
     console.error("Error fetching products:", String(error));
-
     const errorMessage = error instanceof Error ? error.message : String(error);
-
     return NextResponse.json(
-      {
-        error: "Gagal mengambil data menu.",
-        details: errorMessage
-      },
+      { error: "Gagal mengambil data menu.", details: errorMessage },
       { status: 500 }
     );
   }
@@ -31,7 +59,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Validasi sederhana
     if (!body.name || !body.price) {
       return NextResponse.json({ error: "Nama dan Harga wajib diisi" }, { status: 400 });
     }
@@ -43,11 +70,33 @@ export async function POST(request: Request) {
         category: body.category,
         image: body.image || "",
         description: body.description || "",
-        isAvailable: true,
         hasCustomization: body.hasCustomization || false,
         customizationOptions: body.customizationOptions || null,
       },
     });
+
+    // Auto-create ProductBranch for all active branches
+    try {
+      const activeBranches = await (prisma as any).branch.findMany({
+        where: { isActive: true },
+        select: { id: true }
+      });
+
+      if (activeBranches.length > 0) {
+        await (prisma as any).productBranch.createMany({
+          data: activeBranches.map((b: any) => ({
+            productId: newProduct.id,
+            branchId: b.id,
+            isAvailable: true,
+            branchPrice: null
+          })),
+          skipDuplicates: true
+        });
+      }
+    } catch (branchErr) {
+      // Branch tables might not exist yet if migration hasn't run
+      console.warn("Could not create ProductBranch records:", branchErr);
+    }
 
     return NextResponse.json(newProduct);
   } catch (error) {
@@ -56,16 +105,68 @@ export async function POST(request: Request) {
   }
 }
 
-// 3. PUT: Untuk Edit Menu / Ganti Status Ready
+// 3. PUT: Untuk Edit Menu / Ganti Status Ready / Set Branch Price
 export async function PUT(request: Request) {
   try {
-    const { id, ...data } = await request.json();
+    const body = await request.json();
+    const { id, branchId, branchPrice, ...data } = body;
+
+    // If updating branch-specific price
+    if (branchId !== undefined) {
+      await (prisma as any).productBranch.upsert({
+        where: {
+          productId_branchId: { productId: id, branchId }
+        },
+        update: {
+          branchPrice: branchPrice !== null && branchPrice !== undefined ? Number(branchPrice) : null,
+          isAvailable: data.isAvailable !== undefined ? data.isAvailable : true
+        },
+        create: {
+          productId: id,
+          branchId,
+          branchPrice: branchPrice !== null && branchPrice !== undefined ? Number(branchPrice) : null,
+          isAvailable: data.isAvailable !== undefined ? data.isAvailable : true
+        }
+      });
+
+      // Also update base product fields if provided
+      if (data.name || data.price || data.category || data.image !== undefined) {
+        const updateData: any = {};
+        if (data.name) updateData.name = data.name;
+        if (data.price) updateData.price = Number(data.price);
+        if (data.category) updateData.category = data.category;
+        if (data.image !== undefined) updateData.image = data.image;
+        if (data.hasCustomization !== undefined) updateData.hasCustomization = data.hasCustomization;
+        if (data.customizationOptions !== undefined) updateData.customizationOptions = data.customizationOptions;
+
+        if (Object.keys(updateData).length > 0) {
+          await prisma.product.update({ where: { id }, data: updateData });
+        }
+      }
+
+      const updated = await (prisma as any).product.findUnique({
+        where: { id },
+        include: {
+          productBranches: {
+            select: { branchId: true, branchPrice: true, isAvailable: true }
+          }
+        }
+      });
+
+      return NextResponse.json(updated);
+    }
+
+    // Standard product update (no branch context)
+    // Remove isAvailable from data because it no longer exists on Product model
+    const { isAvailable, ...productData } = data;
+
     const updatedProduct = await prisma.product.update({
       where: { id },
-      data: data,
+      data: productData,
     });
     return NextResponse.json(updatedProduct);
   } catch (error) {
+    console.error("Error updating product:", error);
     return NextResponse.json({ error: "Gagal update" }, { status: 500 });
   }
 }

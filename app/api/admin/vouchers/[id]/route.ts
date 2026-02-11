@@ -57,7 +57,8 @@ export async function PUT(
                 validFrom: data.validFrom ? new Date(data.validFrom) : undefined,
                 validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
                 active: data.active,
-                applicableItems: data.applicableItems
+                applicableItems: data.applicableItems,
+                applicableBranches: data.applicableBranches // NEW: Multi-branch
             }
         });
 

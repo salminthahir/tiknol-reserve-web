@@ -2,11 +2,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const startDateParam = searchParams.get('startDate');
         const endDateParam = searchParams.get('endDate');
+        const branchIdParam = searchParams.get('branchId'); // New param
 
         // Default: Hari ini (Logic: Use param if exists, else Default Today 00:00 - 23:59)
         let startDate = startDateParam ? new Date(startDateParam) : new Date();
@@ -15,24 +18,34 @@ export async function GET(request: Request) {
         let endDate = endDateParam ? new Date(endDateParam) : new Date();
         if (!endDateParam) endDate.setHours(23, 59, 59, 999);
 
-        console.log(`📊 Generating Revenue Data: ${startDate.toISOString()} - ${endDate.toISOString()}`);
+        // Debug Log
+        console.log(`📊 Generating Revenue Data: ${startDate.toISOString()} - ${endDate.toISOString()} | Branch: ${branchIdParam || 'ALL'}`);
+
+        // Build Where Clause
+        const whereClause: any = {
+            createdAt: {
+                gte: startDate,
+                lte: endDate
+            },
+            status: { in: ['PAID', 'PREPARING', 'READY', 'COMPLETED'] }
+        };
+
+        if (branchIdParam && branchIdParam !== 'ALL') {
+            whereClause.branchId = branchIdParam;
+        }
 
         // Fetch Completed Orders
         const orders = await prisma.order.findMany({
-            where: {
-                createdAt: {
-                    gte: startDate,
-                    lte: endDate
-                },
-                status: { in: ['PAID', 'PREPARING', 'READY', 'COMPLETED'] }
-            },
+            where: whereClause,
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
                 totalAmount: true,
                 createdAt: true,
                 paymentType: true,
-                items: true // Needed for product analysis
+                items: true,
+                branchId: true, // Needed for breakdown
+                branch: { select: { name: true } } // Fetch branch name
             }
         });
 
@@ -97,29 +110,22 @@ export async function GET(request: Request) {
         // Konversi Map ke Array
         const chartData = Array.from(salesMap.entries())
             .map(([name, data]) => ({ name, value: data.value, date: data.dateStr }));
-        // Removed reverse() because pre-fill ensures chronological order
-
 
 
         // 3. Payment Method Split
-        // Hitung frekuensi payment type
         const paymentMap = new Map<string, number>();
         orders.forEach(order => {
-            // Normalisasi payment type (karena ada midtrans type)
             let type = order.paymentType || 'QRIS';
             if (type === 'gopay' || type === 'qris') type = 'QRIS';
             type = type.toUpperCase();
 
             const current = paymentMap.get(type) || 0;
-            paymentMap.set(type, current + 1); // Hitung jumlah transaksi, bukan value
+            paymentMap.set(type, current + 1);
         });
-
         const paymentMethods = Array.from(paymentMap.entries()).map(([name, value]) => ({ name, value }));
 
-        // 4. Top Products Analysis (Target Penjualan)
-        // Parse JSON items dan hitung
+        // 4. Top Products Analysis
         const productMap = new Map<string, { qty: number, revenue: number }>();
-
         orders.forEach(order => {
             let items: any[] = [];
             if (typeof order.items === 'string') {
@@ -143,28 +149,42 @@ export async function GET(request: Request) {
 
         const topProducts = Array.from(productMap.entries())
             .map(([name, stat]) => ({ name, ...stat }))
-            .sort((a, b) => b.qty - a.qty) // Sort by Quantity terjual
-            .slice(0, 5); // Ambil Top 5
+            .sort((a, b) => b.qty - a.qty)
+            .slice(0, 5);
 
         // 5. Transaction List Logic
-        // If Single Day (Drill-down), return ALL transactions for that day.
-        // If Overview (Range), return only top 10 recent.
         const recentOrders = isSingleDay ? orders : orders.slice(0, 10);
-
         const recentTransactions = recentOrders.map(o => {
-            // Parse items safely for receipt viewer
             let parsedItems = [];
             if (typeof o.items === 'string') {
                 try { parsedItems = JSON.parse(o.items); } catch (e) { }
             } else if (Array.isArray(o.items)) {
                 parsedItems = o.items;
             }
-
-            return {
-                ...o,
-                items: parsedItems
-            };
+            return { ...o, items: parsedItems };
         });
+
+        // 6. Branch Breakdown (New Feature)
+        // Calculate total revenue per branch
+        const branchMap = new Map<string, { name: string, revenue: number, orders: number }>();
+
+        orders.forEach(order => {
+            // Handling potential null branchId if old data exists
+            const branchId = order.branchId || 'unknown_branch';
+            const branchName = order.branch?.name || (branchId === 'unknown_branch' ? 'Unknown' : 'Head Office');
+            // Note: If branchId is null, it might be old data, assume Head Office or Unknown
+
+            const current = branchMap.get(branchId) || { name: branchName, revenue: 0, orders: 0 };
+            branchMap.set(branchId, {
+                name: branchName,
+                revenue: current.revenue + order.totalAmount,
+                orders: current.orders + 1
+            });
+        });
+
+        const branchBreakdown = Array.from(branchMap.entries())
+            .map(([id, data]) => ({ id, ...data }))
+            .sort((a, b) => b.revenue - a.revenue);
 
         return NextResponse.json({
             summary: {
@@ -175,7 +195,8 @@ export async function GET(request: Request) {
             chartData,
             paymentMethods,
             topProducts,
-            recentTransactions
+            recentTransactions,
+            branchBreakdown // Include breakdown in response
         });
 
     } catch (error) {

@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
                 validFrom: new Date(data.validFrom),
                 validUntil: new Date(data.validUntil),
                 active: data.active !== undefined ? data.active : true,
-                applicableItems: data.applicableItems || null
+                applicableItems: data.applicableItems || null,
+                applicableBranches: data.applicableBranches || null // NEW: Multi-branch
             }
         });
 

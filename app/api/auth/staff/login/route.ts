@@ -15,7 +15,13 @@ export async function POST(request: Request) {
 
         // 1. Verify Employee Exists & Is Active
         const employee = await prisma.employee.findUnique({
-            where: { id: normalizedId }
+            where: { id: normalizedId },
+            include: {
+                branch: true,
+                accessibleBranches: {
+                    include: { branch: true }
+                }
+            }
         });
 
         if (!employee) {
@@ -29,12 +35,24 @@ export async function POST(request: Request) {
         // 2. Create Secure Session
         const cookieStore = await cookies();
 
+        // Calculate Access
+        const additionalAccess = employee.accessibleBranches.map(ab => ({
+            branchId: ab.branchId,
+            branchName: ab.branch.name
+        }));
+
         // Payload Sesi
         const sessionData = {
             userId: employee.id,
             name: employee.name,
             role: employee.role,
-            isStaff: true
+            isStaff: true,
+            // Branch Context
+            branchId: employee.branchId,
+            branchName: employee.branch?.name || 'Unknown Branch',
+            // Access Control
+            isGlobalAccess: employee.isGlobalAccess || false,
+            additionalAccess: additionalAccess
         };
 
         cookieStore.set('staff_session', JSON.stringify(sessionData), {

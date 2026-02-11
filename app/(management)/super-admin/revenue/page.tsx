@@ -22,7 +22,8 @@ import {
     Clock,
     DollarSign,
     Activity,
-    Filter
+    Filter,
+    Store
 } from 'lucide-react';
 import DashboardSkeleton from '@/app/components/skeletons/DashboardSkeleton';
 
@@ -41,6 +42,13 @@ type Transaction = {
     items: TransactionItem[];
 };
 
+type BranchBreakdown = {
+    id: string;
+    name: string;
+    revenue: number;
+    orders: number;
+};
+
 type RevenueData = {
     summary: {
         totalRevenue: number;
@@ -51,6 +59,13 @@ type RevenueData = {
     paymentMethods: { name: string; value: number }[];
     topProducts: { name: string; qty: number; revenue: number }[];
     recentTransactions: Transaction[];
+    branchBreakdown?: BranchBreakdown[];
+};
+
+type Branch = {
+    id: string;
+    name: string;
+    code: string;
 };
 
 export default function RevenuePage() {
@@ -61,11 +76,31 @@ export default function RevenuePage() {
     const [dailyData, setDailyData] = useState<RevenueData | null>(null);
     const [loadingDaily, setLoadingDaily] = useState(false);
 
+    // Branch Filter State
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [selectedBranch, setSelectedBranch] = useState<string>('ALL'); // 'ALL' or specific branchId
+
     // Receipt Viewer State
     const [selectedReceipt, setSelectedReceipt] = useState<Transaction | null>(null);
 
+    // --- FETCH BRANCHES ---
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                const res = await fetch('/api/branches');
+                if (res.ok) {
+                    const data = await res.json();
+                    setBranches(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch branches:", error);
+            }
+        };
+        fetchBranches();
+    }, []);
+
     // --- FETCH MAIN DATA ---
-    const fetchData = async (targetFilter: string, targetDate?: string) => {
+    const fetchData = async (targetFilter: string, targetDate?: string, targetBranch?: string) => {
         try {
             const now = new Date();
             let startDate = new Date();
@@ -89,10 +124,16 @@ export default function RevenuePage() {
                 }
             }
 
-            const query = new URLSearchParams({
+            const queryParams: Record<string, string> = {
                 startDate: startDate.toISOString(),
                 endDate: endDate.toISOString()
-            });
+            };
+
+            if (targetBranch && targetBranch !== 'ALL') {
+                queryParams.branchId = targetBranch;
+            }
+
+            const query = new URLSearchParams(queryParams);
 
             const res = await fetch(`/api/admin/revenue?${query}`);
             if (res.ok) return await res.json();
@@ -105,11 +146,11 @@ export default function RevenuePage() {
 
     useEffect(() => {
         setLoading(true);
-        fetchData(filter).then(d => {
+        fetchData(filter, undefined, selectedBranch).then(d => {
             setData(d);
             setLoading(false);
         });
-    }, [filter]);
+    }, [filter, selectedBranch]);
 
     useEffect(() => {
         if (!selectedDate) {
@@ -117,11 +158,11 @@ export default function RevenuePage() {
             return;
         }
         setLoadingDaily(true);
-        fetchData('', selectedDate).then(d => {
+        fetchData('', selectedDate, selectedBranch).then(d => {
             setDailyData(d);
             setLoadingDaily(false);
         });
-    }, [selectedDate]);
+    }, [selectedDate, selectedBranch]);
 
     // --- HELPERS ---
     const formatMoney = (n: number) => "IDR " + (n / 1000).toLocaleString('id-ID') + "K";
@@ -145,6 +186,7 @@ export default function RevenuePage() {
 
     // SWISS/GOLD THEME PALETTE
     const COLORS = ['#FFBF00', '#111111', '#555555', '#E5E5E5'];
+    const BRANCH_COLORS = ['#FFC107', '#FF5722', '#673AB7', '#009688', '#E91E63', '#3F51B5'];
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0A] text-slate-900 dark:text-white font-sans p-6 lg:p-10 transition-colors">
@@ -154,6 +196,21 @@ export default function RevenuePage() {
                 <div>
                     <h1 className="text-4xl font-black tracking-tight mb-2">Revenue Analytics</h1>
                     <p className="text-gray-500 dark:text-gray-400">Financial performance overview</p>
+
+                    {/* Branch Selector */}
+                    <div className="mt-4 flex items-center gap-3">
+                        <Store size={18} className="text-gray-400" />
+                        <select
+                            value={selectedBranch}
+                            onChange={(e) => setSelectedBranch(e.target.value)}
+                            className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#FFBF00] min-w-[200px]"
+                        >
+                            <option value="ALL">All Branches</option>
+                            {branches.map(branch => (
+                                <option key={branch.id} value={branch.id}>{branch.name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 <div className="flex bg-gray-100 dark:bg-[#1A1A1A] p-1 rounded-lg">
@@ -171,8 +228,6 @@ export default function RevenuePage() {
                     ))}
                 </div>
             </header>
-
-            {/* ... */}
 
             {loading || !data ? (
                 <DashboardSkeleton />
@@ -238,6 +293,58 @@ export default function RevenuePage() {
                         </div>
                     </div>
 
+                    {/* NEW SECTION: Revenue by Branch (Only visible generally when ALL branches selected, but useful anyway) */}
+                    {selectedBranch === 'ALL' && data.branchBreakdown && data.branchBreakdown.length > 0 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm">
+                                <h3 className="font-bold text-lg dark:text-white mb-6">Revenue by Branch</h3>
+                                <div className="space-y-4">
+                                    {data.branchBreakdown.map((b, i) => (
+                                        <div key={b.id} className="relative">
+                                            <div className="flex justify-between text-xs font-bold mb-1">
+                                                <span>{b.name || 'Unknown Branch'} ({b.orders} orders)</span>
+                                                <span>{formatFullMoney(b.revenue)}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 dark:bg-[#222] rounded-full h-3 overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full"
+                                                    style={{
+                                                        width: `${(b.revenue / data.summary.totalRevenue) * 100}%`,
+                                                        backgroundColor: BRANCH_COLORS[i % BRANCH_COLORS.length]
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Mini Donut for Branch Share */}
+                            <div className="bg-white dark:bg-[#111] p-6 rounded-2xl border border-gray-100 dark:border-[#222] shadow-sm flex flex-col items-center justify-center">
+                                <h3 className="font-bold text-sm dark:text-white mb-4 self-start">Market Share</h3>
+                                <div className="h-40 w-full">
+                                    <ResponsiveContainer>
+                                        <PieChart>
+                                            <Pie
+                                                data={data.branchBreakdown}
+                                                dataKey="revenue"
+                                                nameKey="name"
+                                                cx="50%" cy="50%"
+                                                innerRadius={40}
+                                                outerRadius={60}
+                                                stroke="none"
+                                            >
+                                                {data.branchBreakdown?.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={BRANCH_COLORS[index % BRANCH_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ backgroundColor: '#111', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* 2. MAIN CHARTS */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -290,7 +397,7 @@ export default function RevenuePage() {
                                             stroke="none"
                                         >
                                             {data.paymentMethods.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={4} />
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip contentStyle={{ backgroundColor: '#111', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }} />
@@ -418,7 +525,7 @@ export default function RevenuePage() {
                             </div>
 
                             {/* Chart */}
-                            <div className="bg-white dark:bg-[#1A1A1A] p-6 rounded-2xl border border-gray-100 dark:border-[#333] mb-8">
+                            <div className="bg-white dark:bg-[#1A1A1A] p-6 rounded-2xl border border-gray-100 dark:border-[#222] mb-8">
                                 <h3 className="font-bold mb-4 dark:text-white">Hourly Traffic</h3>
                                 <div className="h-48 w-full">
                                     <ResponsiveContainer>

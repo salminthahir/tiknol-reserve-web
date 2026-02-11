@@ -1,8 +1,7 @@
-// app/components/VoucherFormModal.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Sparkles, Clock, Layers } from 'lucide-react';
+import { X, Sparkles, Clock, Layers, MapPin } from 'lucide-react';
 import { Voucher, VoucherType } from '@/types/voucher';
 
 interface VoucherFormModalProps {
@@ -36,6 +35,20 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
 
   const categories = ['COFFEE', 'NON-COFFEE', 'SNACK', 'FOOD', 'DESSERT']; // Pre-defined for quick select
 
+  // Branch State
+  const [branches, setBranches] = useState<{ id: string, name: string }[]>([]);
+  const [applicableBranches, setApplicableBranches] = useState<string[]>([]);
+
+  // Fetch branches on mount
+  useEffect(() => {
+    fetch('/api/branches')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setBranches(data);
+      })
+      .catch(err => console.error("Failed to fetch branches", err));
+  }, []);
+
   useEffect(() => {
     if (voucher) {
       setFormData({
@@ -55,6 +68,13 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         happyHourStart: voucher.happyHourStart || '',
         happyHourEnd: voucher.happyHourEnd || ''
       });
+
+      // Set branches
+      if (voucher.applicableBranches && Array.isArray(voucher.applicableBranches)) {
+        setApplicableBranches(voucher.applicableBranches as string[]);
+      } else {
+        setApplicableBranches([]);
+      }
     } else {
       // Reset form for new voucher
       const today = new Date().toISOString().split('T')[0];
@@ -78,6 +98,7 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         happyHourStart: '',
         happyHourEnd: ''
       });
+      setApplicableBranches([]);
     }
   }, [voucher, isOpen]);
 
@@ -101,6 +122,7 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
         validUntil: new Date(formData.validUntil).toISOString(),
         active: formData.active,
         applicableCategories: formData.applicableCategories,
+        applicableBranches: applicableBranches.length > 0 ? applicableBranches : null,
         happyHourStart: formData.happyHourStart || null,
         happyHourEnd: formData.happyHourEnd || null
       };
@@ -369,7 +391,7 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
                   <Sparkles size={18} />
                   Advanced Promotional Rules
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-[#552CB7]/5 border-2 border-[#552CB7]/20 rounded-2xl">
                   {/* Applicable Categories */}
                   <div>
@@ -388,11 +410,10 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
                               : [...formData.applicableCategories, cat];
                             setFormData({ ...formData, applicableCategories: newCats });
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${
-                            formData.applicableCategories.includes(cat)
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${formData.applicableCategories.includes(cat)
                               ? 'bg-[#552CB7] text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]'
                               : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           {cat}
                         </button>
@@ -430,6 +451,48 @@ export default function VoucherFormModal({ isOpen, onClose, onSuccess, voucher }
                     <p className="text-[10px] text-gray-400 mt-2 font-bold italic">* Kosongkan untuk berlaku sepanjang hari</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Divider */}
+              <div className="sm:col-span-2 border-t-2 border-dashed border-gray-300 my-2"></div>
+
+              {/* Branch Selection */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-black text-gray-600 mb-3 uppercase tracking-wider flex items-center gap-2">
+                  <MapPin size={14} />
+                  Berlaku di Cabang
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setApplicableBranches([])}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${applicableBranches.length === 0
+                        ? 'bg-[#552CB7] text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]'
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                      }`}
+                  >
+                    SEMUA CABANG
+                  </button>
+                  {branches.map((branch) => (
+                    <button
+                      key={branch.id}
+                      type="button"
+                      onClick={() => {
+                        const newBranches = applicableBranches.includes(branch.id)
+                          ? applicableBranches.filter(b => b !== branch.id)
+                          : [...applicableBranches, branch.id];
+                        setApplicableBranches(newBranches);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${applicableBranches.includes(branch.id)
+                          ? 'bg-[#552CB7] text-white border-black shadow-[2px_2px_0px_rgba(0,0,0,1)]'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                      {branch.name}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 font-bold italic">* Jika "SEMUA CABANG" dipilih, voucher berlaku global.</p>
               </div>
 
               {/* Active Status */}

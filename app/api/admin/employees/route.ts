@@ -2,28 +2,42 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: List all employees
-export async function GET() {
-  console.log('API /api/admin/employees hit');
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const branchId = searchParams.get('branchId');
+
+  console.log('API /api/admin/employees hit', branchId ? `Filter: ${branchId}` : 'All');
+
   try {
     if (!prisma.employee) {
-      throw new Error('Prisma Client not initialized or Employee model missing');
+      throw new Error('Prisma Client not initialized');
     }
+
+    const where: any = {};
+    if (branchId) {
+      where.branchId = branchId;
+    }
+
     const employees = await prisma.employee.findMany({
+      where,
       orderBy: { name: 'asc' },
       include: {
+        branch: { select: { id: true, name: true, code: true } }, // Include Home Branch info
+        accessibleBranches: {
+          include: { branch: { select: { id: true, name: true } } }
+        },
         _count: {
           select: { attendances: true }
         }
       }
     });
-    console.log('Employees found:', employees?.length);
+
     return NextResponse.json(employees);
   } catch (error: any) {
-    const safeError = error || { message: 'Unknown error (null)' };
-    console.error('API Error:', safeError);
+    console.error('API Error:', error);
     return NextResponse.json({
       error: 'Failed to fetch employees',
-      details: safeError?.message || String(safeError)
+      details: error?.message
     }, { status: 500 });
   }
 }
@@ -32,10 +46,16 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, whatsapp, pin, role } = body;
+    const { name, whatsapp, pin, role, branchId, isGlobalAccess, accessibleBranchIds } = body;
 
-    if (!prisma.employee) {
-      throw new Error('Prisma Client not initialized');
+    if (!branchId) {
+      return NextResponse.json({ error: 'Home Branch is required' }, { status: 400 });
+    }
+
+    // 0. Validate Branch Exists
+    const branchExists = await prisma.branch.findUnique({ where: { id: branchId } });
+    if (!branchExists) {
+      return NextResponse.json({ error: 'Invalid Home Branch ID' }, { status: 400 });
     }
 
     // 1. Generate Sequential ID
@@ -52,7 +72,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Create Employee
+    // 2. Create Employee with Branch Access
     const newEmployee = await prisma.employee.create({
       data: {
         id: newId,
@@ -60,15 +80,21 @@ export async function POST(request: Request) {
         whatsapp,
         pin,
         role: role || 'STAFF',
+        branchId, // Home Branch
+        isGlobalAccess: isGlobalAccess || false,
+        accessibleBranches: {
+          create: accessibleBranchIds?.map((bid: string) => ({ branchId: bid })) || []
+        }
       },
+      include: { branch: true }
     });
 
     return NextResponse.json(newEmployee, { status: 201 });
   } catch (error: any) {
-    console.error('API POST Error:', error); // Log the raw error
+    console.error('API POST Error:', error);
     return NextResponse.json({
       error: 'Failed to create employee',
-      details: error?.message || 'Unknown server error'
+      details: error?.message
     }, { status: 500 });
   }
 }
@@ -77,12 +103,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    console.log('PATCH Body:', body);
     const { id, action, ...data } = body;
-
-    // Separate oldId (if provided) else fallback to id
     const targetId = body.oldId || id;
-    console.log('Target ID:', targetId);
 
     if (!targetId) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
@@ -93,21 +115,41 @@ export async function PATCH(request: Request) {
     } else if (action === 'TOGGLE_STATUS') {
       const current = await prisma.employee.findUnique({ where: { id: targetId } });
       if (current) updateData = { isActive: !current.isActive };
+    } else if (action === 'UPDATE_ACCESS') {
+      // NEW: Handle Branch Access Update
+      const { branchId, isGlobalAccess, accessibleBranchIds } = data;
+
+      // 1. Update basic fields first
+      if (branchId) {
+        const branchExists = await prisma.branch.findUnique({ where: { id: branchId } });
+        if (!branchExists) return NextResponse.json({ error: 'Invalid Branch ID' }, { status: 400 });
+      }
+
+      updateData = {
+        branchId,
+        isGlobalAccess
+      };
+
+      // 2. Handle accessibleBranches via transaction logic inside update
+      // Prisma update can handle nested writes
+      updateData.accessibleBranches = {
+        deleteMany: {}, // Remove all existing
+        create: accessibleBranchIds?.map((bid: string) => ({ branchId: bid })) || [] // Add new
+      };
+
     } else if (action === 'UPDATE_PROFILE') {
       updateData = {
         name: data.name,
         whatsapp: data.whatsapp,
-        role: data.role, // Allow role update
+        role: data.role,
+        branchId: data.branchId // Allow branch transfer in profile update
       };
+      if (data.pin) updateData.pin = data.pin;
 
-      // Update PIN if provided
-      if (data.pin) {
-        updateData.pin = data.pin;
-      }
-
-      // Allow ID update if changed
+      // Handle ID change logic... (omitted for brevity standard update)
+      // Assuming ID change is rare and handled separately or safely
+      // Keeping original ID change logic if safe:
       if (id && id !== targetId) {
-        // Check if new ID exists
         const exists = await prisma.employee.findUnique({ where: { id: id } });
         if (exists) return NextResponse.json({ error: 'ID already in use' }, { status: 400 });
         updateData.id = id;
@@ -118,13 +160,13 @@ export async function PATCH(request: Request) {
 
     const updatedEmployee = await prisma.employee.update({
       where: { id: targetId },
-      data: updateData
+      data: updateData,
+      include: { branch: true, accessibleBranches: true }
     });
 
     return NextResponse.json(updatedEmployee);
   } catch (error: any) {
-    const safeError = error || { message: 'Unknown error (null)' };
-    console.error('API PATCH Error:', safeError);
-    return NextResponse.json({ error: 'Failed to update employee', details: safeError?.message || String(safeError) }, { status: 500 });
+    console.error('API PATCH Error:', error);
+    return NextResponse.json({ error: 'Failed to update employee', details: error?.message }, { status: 500 });
   }
 }
