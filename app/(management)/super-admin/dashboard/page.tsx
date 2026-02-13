@@ -60,7 +60,7 @@ export default function SuperAdminDashboard() {
                     <h1 className="text-3xl font-black dark:text-white tracking-tight mb-1">
                         Dashboard Overview
                     </h1>
-                    <p className="text-sm text-gray-500 dark:text-neutral-400">
+                    <p className="text-sm text-slate-600 dark:text-neutral-400">
                         Welcome back, Chief. Main Branch is <span className="text-green-500 font-bold">OPEN</span>.
                     </p>
                 </div>
@@ -93,7 +93,7 @@ export default function SuperAdminDashboard() {
                 >
                     <div className="flex justify-between items-start">
                         <div className="flex flex-col gap-1">
-                            <p className="text-gray-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Today's Revenue</p>
+                            <p className="text-slate-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Today's Revenue</p>
                             <h3 className="text-3xl font-black dark:text-white tracking-tight">{stats ? formatMoney(stats.revenue) : 'IDR 0'}</h3>
                         </div>
                         <div className="p-2 rounded-lg bg-green-500/10 text-green-500 flex items-center gap-1">
@@ -102,7 +102,7 @@ export default function SuperAdminDashboard() {
                         </div>
                     </div>
                     <div className="flex flex-col w-full gap-2">
-                        <div className="flex justify-between text-xs text-gray-400 font-mono">
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 font-mono">
                             <span>Avg Order Value</span>
                             <span>{stats ? formatMoney(stats.avgOrderValue) : '0'}</span>
                         </div>
@@ -119,7 +119,7 @@ export default function SuperAdminDashboard() {
                 >
                     <div className="flex justify-between items-start">
                         <div className="flex flex-col gap-1">
-                            <p className="text-gray-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Active Staff</p>
+                            <p className="text-slate-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Active Staff</p>
                             <h3 className="text-3xl font-black dark:text-white tracking-tight">{stats?.activeStaff || 0}<span className="text-neutral-500 text-xl font-medium">/{stats?.totalStaff || 12}</span></h3>
                         </div>
                         <div className="p-2 rounded-lg bg-gray-100 dark:bg-[#222] text-gray-600 dark:text-gray-400">
@@ -149,7 +149,7 @@ export default function SuperAdminDashboard() {
                 >
                     <div className="flex justify-between items-start">
                         <div className="flex flex-col gap-1">
-                            <p className="text-gray-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Orders Today</p>
+                            <p className="text-slate-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Orders Today</p>
                             <h3 className="text-3xl font-black dark:text-white tracking-tight">{stats?.orders || 0}</h3>
                         </div>
                         <div className="p-2 rounded-lg bg-green-500/10 text-green-500 flex items-center gap-1">

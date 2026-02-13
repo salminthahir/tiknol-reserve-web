@@ -170,3 +170,29 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Failed to update employee', details: error?.message }, { status: 500 });
   }
 }
+
+// DELETE: Remove employee
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
+    }
+
+    // Prisma schema has onDelete: Cascade on EmployeeAccess and Attendance
+    // so related records are automatically cleaned up
+    await prisma.employee.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('API DELETE Error:', error);
+    return NextResponse.json({
+      error: 'Failed to delete employee',
+      details: error?.message
+    }, { status: 500 });
+  }
+}

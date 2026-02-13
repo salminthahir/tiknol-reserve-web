@@ -14,6 +14,7 @@ import {
     Building2
 } from 'lucide-react';
 import { useState } from 'react';
+import { ThemeToggle } from '@/app/components/ThemeToggle';
 
 export default function SuperAdminLayout({
     children,
@@ -60,6 +61,7 @@ export default function SuperAdminLayout({
                         <span className="text-[#FFBF00]">.</span>NOL
                         <span className="block text-xs font-bold not-italic tracking-widest text-gray-500 mt-1">SUPER ADMIN</span>
                     </h1>
+                    <ThemeToggle />
                 </div>
 
                 {/* Navigation */}
@@ -113,10 +115,11 @@ export default function SuperAdminLayout({
             {/* MAIN CONTENT */}
             <main className="flex-1 min-w-0 overflow-x-hidden mb-20 md:mb-0 md:ml-64">
                 {/* Mobile Header Trigger */}
-                <div className="md:hidden p-4 bg-white dark:bg-[#111] flex justify-between items-center sticky top-0 z-40 border-b border-gray-100 dark:border-[#222]">
-                    <h1 className="font-black italic text-xl dark:text-white">
+                <div className="md:hidden p-4 bg-black flex justify-between items-center sticky top-0 z-40 border-b border-[#222]">
+                    <h1 className="font-black italic text-xl text-white">
                         <span className="text-[#FFBF00]">.</span>NOL <span className="text-xs font-normal tracking-widest text-gray-400">ADMIN</span>
                     </h1>
+                    <ThemeToggle />
                 </div>
 
                 {children}

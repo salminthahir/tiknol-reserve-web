@@ -195,7 +195,7 @@ export default function RevenuePage() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight mb-2">Revenue Analytics</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Financial performance overview</p>
+                    <p className="text-slate-600 dark:text-gray-400">Financial performance overview</p>
 
                     {/* Branch Selector */}
                     <div className="mt-4 flex items-center gap-3">
@@ -246,7 +246,7 @@ export default function RevenuePage() {
                                 <span className="bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-bold px-2 py-1 rounded-full">+12.5%</span>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Revenue</p>
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1">Total Revenue</p>
                                 <h3 className="text-3xl font-black tracking-tight">{formatMoney(data.summary.totalRevenue)}</h3>
                             </div>
                         </div>
@@ -259,7 +259,7 @@ export default function RevenuePage() {
                                 </span>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Transactions</p>
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1">Transactions</p>
                                 <h3 className="text-3xl font-black tracking-tight">{data.summary.totalOrders}</h3>
                             </div>
                         </div>
@@ -272,7 +272,7 @@ export default function RevenuePage() {
                                 </span>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Avg. Order Value</p>
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1">Avg. Order Value</p>
                                 <h3 className="text-3xl font-black tracking-tight">{formatMoney(data.summary.avgOrderValue)}</h3>
                             </div>
                         </div>

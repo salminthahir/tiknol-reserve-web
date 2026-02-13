@@ -9,6 +9,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { OrderItem } from '@/types/order';
 import { useBranch } from '@/app/context/BranchContext';
 import BranchSelector from '@/components/BranchSelector';
+import { ThemeToggle } from '@/app/components/ThemeToggle';
+import { MenuSkeleton } from './MenuSkeleton';
 
 // --- TIPE DATA ---
 type Product = {
@@ -157,19 +159,14 @@ function MenuContent() {
   });
 
   // --- RENDER LOADING / ERROR ---
-  if (orderId || (isLoading && !orderId && selectedBranch)) return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-[#FBC02D]">
-      <div className="w-12 h-12 border-2 border-[#FBC02D] border-t-transparent rounded-full animate-spin mb-4"></div>
-      <h2 className="text-sm font-mono tracking-widest uppercase animate-pulse">Loading Menu...</h2>
-    </div>
-  );
+  if (orderId || (isLoading && !orderId && selectedBranch)) return <MenuSkeleton />;
 
   return (
-    <div className="min-h-screen bg-[#080808] text-[#e0e0e0] font-sans selection:bg-[#FBC02D] selection:text-black">
+    <div className="min-h-screen bg-white dark:bg-[#080808] text-neutral-900 dark:text-[#e0e0e0] font-sans selection:bg-[#FBC02D] selection:text-black transition-colors duration-500">
       <style jsx global>{`* { -webkit-tap-highlight-color: transparent; }`}</style>
 
       {/* NAVBAR */}
-      <nav className="fixed top-0 left-0 right-0 z-40 h-20 px-4 md:px-8 flex items-center justify-between bg-[#080808]/80 backdrop-blur-md border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-40 h-20 px-4 md:px-8 flex items-center justify-between bg-[#080808]/80 backdrop-blur-md border-b border-white/5 transition-colors duration-500">
         <Link href="/" className="flex items-center gap-2 group active:scale-95 transition-transform duration-200">
           <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg group-hover:border-[#FBC02D]/50 group-hover:bg-white/10 transition-all duration-500 transform group-hover:-translate-y-0.5">
             <h1 className="text-base font-black tracking-tighter text-white"><span className="text-[#FBC02D]">.</span>NOL</h1>
@@ -184,19 +181,22 @@ function MenuContent() {
           className="mx-auto md:mx-0"
         />
 
-        <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all active:scale-95">
+        <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all active:scale-95 text-white">
           <span className="text-xs font-bold uppercase">Tray</span>
           <ShoppingBag size={18} className="text-[#FBC02D]" />
           {totalItems > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FBC02D] text-black text-[9px] font-black flex items-center justify-center rounded-full">{totalItems}</span>}
         </button>
+        <div className="ml-2">
+          <ThemeToggle />
+        </div>
       </nav>
 
       {/* HERO & MARQUEE */}
-      <section className="pt-32 pb-16 px-4 text-center border-b border-white/5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a1a1a] via-[#080808] to-[#080808]">
+      <section className="pt-32 pb-16 px-4 text-center border-b border-neutral-200 dark:border-white/5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white via-neutral-50 to-neutral-100 dark:from-[#1a1a1a] dark:via-[#080808] dark:to-[#080808] transition-colors duration-500">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#FBC02D]/30 bg-[#FBC02D]/5 text-[#FBC02D] text-[10px] font-mono tracking-widest uppercase mb-4">
           <Star size={10} fill="currentColor" /> Premium Selection
         </div>
-        <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter mb-4 leading-none">TASTE THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FBC02D] to-yellow-600">FUTURE</span></h1>
+        <h1 className="text-4xl md:text-7xl font-black uppercase tracking-tighter mb-4 leading-none text-neutral-900 dark:text-white">TASTE THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FBC02D] to-yellow-600">FUTURE</span></h1>
       </section>
 
       <div className="bg-[#FBC02D] text-black overflow-hidden py-2 relative">
@@ -209,7 +209,7 @@ function MenuContent() {
       <div className="flex flex-col lg:flex-row relative">
         <div className="flex-1 min-h-screen">
           {/* FILTER BAR */}
-          <div className="sticky top-20 z-30 bg-[#080808]/95 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="sticky top-20 z-30 bg-[#080808]/95 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-500">
             <div className="relative max-w-xs w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={16} />
               <input type="text" placeholder="SEARCH..." className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 text-xs focus:border-[#FBC02D] transition-all text-white placeholder-neutral-600 uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -234,14 +234,14 @@ function MenuContent() {
                 <p className="font-mono uppercase tracking-widest">No products found</p>
               </div>
             ) : filteredProducts.map((product) => (
-              <div key={product.id} onClick={() => handleAddToCartClick(product)} className="group relative bg-[#111] border border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer">
-                <div className="relative aspect-square overflow-hidden bg-[#1a1a1a]">
-                  <Image src={product.image || '/placeholder.svg'} alt={product.name} fill sizes="20vw" className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-80 group-hover:opacity-100" />
+              <div key={product.id} onClick={() => handleAddToCartClick(product)} className="group relative bg-white dark:bg-[#111] border border-neutral-200 dark:border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md dark:shadow-none">
+                <div className="relative aspect-square overflow-hidden bg-neutral-100 dark:bg-[#1a1a1a]">
+                  <Image src={product.image || '/placeholder.svg'} alt={product.name} fill sizes="20vw" className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-100 dark:opacity-80 dark:group-hover:opacity-100" />
                   <div className="absolute bottom-2 right-2 bg-[#FBC02D] text-black w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><Plus size={18} strokeWidth={3} /></div>
                 </div>
                 <div className="p-3">
-                  <h3 className="font-bold text-xs text-neutral-200 line-clamp-2 mb-2 group-hover:text-[#FBC02D] transition-colors uppercase">{product.name}</h3>
-                  <p className="font-mono font-bold text-xs text-[#FBC02D]">{(product.price / 1000)}<span className="text-white">K</span></p>
+                  <h3 className="font-bold text-xs text-neutral-800 dark:text-neutral-200 line-clamp-2 mb-2 group-hover:text-[#FBC02D] transition-colors uppercase">{product.name}</h3>
+                  <p className="font-mono font-bold text-xs text-[#FBC02D]">{(product.price / 1000)}<span className="text-neutral-900 dark:text-white">K</span></p>
                 </div>
               </div>
             ))}
@@ -250,15 +250,15 @@ function MenuContent() {
 
         {/* --- FLOATING CART BUTTON (MOBILE) --- */}
         <div className={`fixed bottom-6 left-6 right-6 z-[60] md:hidden transition-all duration-500 ${cart.length > 0 ? 'translate-y-0' : 'translate-y-32 opacity-0'}`}>
-          <button onClick={() => setIsCartOpen(true)} className="w-full bg-[#111] backdrop-blur-xl border border-white/10 p-2 rounded-full shadow-2xl flex items-center justify-between active:scale-95 transition-transform">
+          <button onClick={() => setIsCartOpen(true)} className="w-full bg-white dark:bg-[#111] backdrop-blur-xl border border-neutral-200 dark:border-white/10 p-2 rounded-full shadow-2xl flex items-center justify-between active:scale-95 transition-transform text-neutral-900 dark:text-white">
             <div className="flex items-center gap-3">
               <div className="bg-[#FBC02D] w-10 h-10 rounded-full flex items-center justify-center font-black text-black text-sm">{totalItems}</div>
-              <div className="flex flex-col items-start pr-4 border-r border-white/10">
+              <div className="flex flex-col items-start pr-4 border-r border-neutral-200 dark:border-white/10">
                 <span className="text-[10px] text-neutral-500 font-mono tracking-widest uppercase">Total</span>
-                <span className="text-sm font-bold text-white font-mono">Rp {totalAmount.toLocaleString()}</span>
+                <span className="text-sm font-bold text-neutral-900 dark:text-white font-mono">Rp {totalAmount.toLocaleString()}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 pr-4 pl-2 font-black text-[10px] tracking-[0.2em] uppercase text-[#FBC02D]">Checkout <ArrowRight size={14} className="text-white" /></div>
+            <div className="flex items-center gap-2 pr-4 pl-2 font-black text-[10px] tracking-[0.2em] uppercase text-[#FBC02D]">Checkout <ArrowRight size={14} className="text-black dark:text-white" /></div>
           </button>
         </div>
 
@@ -266,14 +266,14 @@ function MenuContent() {
         {selectedProduct && (
           <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setSelectedProduct(null)} />
-            <div className="relative w-full max-w-md bg-[#111] border-t md:border border-white/10 rounded-t-3xl md:rounded-2xl overflow-hidden shadow-2xl animate-slide-up">
+            <div className="relative w-full max-w-md bg-white dark:bg-[#111] border-t md:border border-neutral-200 dark:border-white/10 rounded-t-3xl md:rounded-2xl overflow-hidden shadow-2xl animate-slide-up transition-colors duration-300">
               <div className="p-6 space-y-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <h2 className="text-2xl font-black uppercase tracking-tighter">{selectedProduct.name}</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter text-neutral-900 dark:text-white">{selectedProduct.name}</h2>
                     <p className="text-[#FBC02D] font-mono font-bold text-lg">IDR {selectedProduct.price.toLocaleString()}</p>
                   </div>
-                  <button onClick={() => setSelectedProduct(null)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all"><X size={20} /></button>
+                  <button onClick={() => setSelectedProduct(null)} className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-white/5 flex items-center justify-center hover:bg-neutral-200 dark:hover:bg-white/10 transition-all text-neutral-900 dark:text-white"><X size={20} /></button>
                 </div>
 
                 <div className="space-y-6">
@@ -286,7 +286,7 @@ function MenuContent() {
                         if (!isEnabled) return null;
 
                         return (
-                          <button key={t} onClick={() => setTempCustom(prev => ({ ...prev, temp: t }))} className={`py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${tempCustom.temp === t ? 'bg-white text-black border-white' : 'bg-transparent border-white/5 text-neutral-500 hover:border-white/20'}`}>
+                          <button key={t} onClick={() => setTempCustom(prev => ({ ...prev, temp: t }))} className={`py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2 ${tempCustom.temp === t ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white' : 'bg-transparent border-neutral-200 dark:border-white/5 text-neutral-400 dark:text-neutral-500 hover:border-neutral-300 dark:hover:border-white/20'}`}>
                             {t} {tempCustom.temp === t && <Check size={14} />}
                           </button>
                         );
@@ -340,7 +340,7 @@ function MenuContent() {
                             py-4 px-1 rounded-2xl border-2 transition-all flex flex-col items-center gap-2
                             ${tempCustom.size === s.id
                                 ? 'bg-[#FBC02D] text-black border-[#FBC02D] translate-y-[-6px] shadow-[0_12px_24px_-8px_rgba(251,192,45,0.5)]'
-                                : 'bg-white/5 border-white/5 text-neutral-500 hover:border-white/10'
+                                : 'bg-neutral-50 dark:bg-white/5 border-neutral-100 dark:border-white/5 text-neutral-400 dark:text-neutral-500 hover:border-neutral-200 dark:hover:border-white/10'
                               }
                           `}
                           >
@@ -368,39 +368,39 @@ function MenuContent() {
 
         {/* --- CART DRAWER --- */}
         {isCartOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50]" onClick={() => setIsCartOpen(false)} />}
-        <div className={`fixed top-0 right-0 h-full w-[85vw] md:w-[450px] z-[60] bg-[#080808]/90 backdrop-blur-xl border-l border-white/10 shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="h-20 flex items-center justify-between px-6 border-b border-white/10 bg-white/5">
-            <h2 className="font-black text-xl uppercase tracking-widest flex items-center gap-2">Order<span className="text-[#FBC02D]">Tray</span></h2>
-            <button onClick={() => setIsCartOpen(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"><X size={18} /></button>
+        <div className={`fixed top-0 right-0 h-full w-[85vw] md:w-[450px] z-[60] bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl border-l border-neutral-200 dark:border-white/10 shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="h-20 flex items-center justify-between px-6 border-b border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-white/5">
+            <h2 className="font-black text-xl uppercase tracking-widest flex items-center gap-2 text-neutral-900 dark:text-white">Order<span className="text-[#FBC02D]">Tray</span></h2>
+            <button onClick={() => setIsCartOpen(false)} className="w-8 h-8 rounded-full bg-neutral-200 dark:bg-white/10 flex items-center justify-center text-neutral-900 dark:text-white"><X size={18} /></button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-neutral-600 space-y-4 opacity-50">
+              <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-600 space-y-4 opacity-50">
                 <ShoppingBag size={48} />
                 <p className="font-mono text-[10px] uppercase tracking-[0.2em]">Tray is empty</p>
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.uniqueKey} className="group relative bg-white/5 border border-white/5 p-3 rounded-xl transition-all">
+                <div key={item.uniqueKey} className="group relative bg-neutral-50 dark:bg-white/5 border border-neutral-200 dark:border-white/5 p-3 rounded-xl transition-all">
                   <div className="flex justify-between items-start mb-2">
                     <div className="space-y-1">
-                      <h4 className="font-bold text-xs text-neutral-200 uppercase">{item.name}</h4>
+                      <h4 className="font-bold text-xs text-neutral-800 dark:text-neutral-200 uppercase">{item.name}</h4>
                       {item.custom && (
                         <div className="flex gap-2">
-                          <span className="text-[8px] font-black bg-white/10 px-1.5 py-0.5 rounded text-neutral-400">{item.custom.temp}</span>
-                          <span className="text-[8px] font-black bg-white/10 px-1.5 py-0.5 rounded text-neutral-400">{item.custom.size} SIZE</span>
+                          <span className="text-[8px] font-black bg-neutral-200 dark:bg-white/10 px-1.5 py-0.5 rounded text-neutral-500 dark:text-neutral-400">{item.custom.temp}</span>
+                          <span className="text-[8px] font-black bg-neutral-200 dark:bg-white/10 px-1.5 py-0.5 rounded text-neutral-500 dark:text-neutral-400">{item.custom.size} SIZE</span>
                         </div>
                       )}
                     </div>
                     <p className="font-mono text-sm text-[#FBC02D]">{(item.price * item.qty).toLocaleString()}</p>
                   </div>
                   <div className="flex justify-between items-center mt-4">
-                    <p className="text-[9px] text-neutral-500 font-mono">UNIT: {item.price.toLocaleString()}</p>
-                    <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1 border border-white/5">
-                      <button onClick={() => updateQty(item.uniqueKey, -1)} className="w-7 h-7 flex items-center justify-center text-red-400 active:scale-75 transition-transform"><Minus size={14} /></button>
-                      <span className="text-xs font-mono w-6 text-center">{item.qty}</span>
-                      <button onClick={() => updateQty(item.uniqueKey, 1)} className="w-7 h-7 flex items-center justify-center text-green-400 active:scale-75 transition-transform"><Plus size={14} /></button>
+                    <p className="text-[9px] text-neutral-400 dark:text-neutral-500 font-mono">UNIT: {item.price.toLocaleString()}</p>
+                    <div className="flex items-center gap-1 bg-white dark:bg-black/40 rounded-lg p-1 border border-neutral-200 dark:border-white/5">
+                      <button onClick={() => updateQty(item.uniqueKey, -1)} className="w-7 h-7 flex items-center justify-center text-red-500 dark:text-red-400 active:scale-75 transition-transform"><Minus size={14} /></button>
+                      <span className="text-xs font-mono w-6 text-center text-neutral-900 dark:text-white">{item.qty}</span>
+                      <button onClick={() => updateQty(item.uniqueKey, 1)} className="w-7 h-7 flex items-center justify-center text-green-500 dark:text-green-400 active:scale-75 transition-transform"><Plus size={14} /></button>
                     </div>
                   </div>
                 </div>
@@ -408,16 +408,16 @@ function MenuContent() {
             )}
           </div>
 
-          <div className="p-6 bg-[#0a0a0a] border-t border-white/10 space-y-5">
+          <div className="p-6 bg-white dark:bg-[#0a0a0a] border-t border-neutral-200 dark:border-white/10 space-y-5 text-neutral-900 dark:text-white">
             {cart.length > 0 && (
               <div className="space-y-2">
-                <input type="text" placeholder="NAME" className="w-full bg-white/5 border border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-200" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                <input type="tel" placeholder="WHATSAPP" className="w-full bg-white/5 border border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-200" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+                <input type="text" placeholder="NAME" className="w-full bg-neutral-50 dark:bg-white/5 border border-neutral-200 dark:border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-500 dark:placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-900 dark:text-neutral-200" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <input type="tel" placeholder="WHATSAPP" className="w-full bg-neutral-50 dark:bg-white/5 border border-neutral-200 dark:border-white/5 py-2.5 px-3 rounded-lg text-base md:text-[10px] font-medium placeholder:font-mono placeholder:text-neutral-500 dark:placeholder:text-neutral-600 uppercase focus:border-[#FBC02D] outline-none text-neutral-900 dark:text-neutral-200" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
               </div>
             )}
             <div className="flex justify-between items-end pb-2">
-              <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Total Amount</span>
-              <span className="text-2xl font-black text-white tracking-tighter"><span className="text-[#FBC02D] text-sm mr-1">IDR</span>{totalAmount.toLocaleString()}</span>
+              <span className="text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">Total Amount</span>
+              <span className="text-2xl font-black tracking-tighter"><span className="text-[#FBC02D] text-sm mr-1">IDR</span>{totalAmount.toLocaleString()}</span>
             </div>
             <CheckoutButton items={cart} total={totalAmount} customerName={customerName} whatsapp={whatsapp} disabled={!isFormValid} branchId={selectedBranch?.id} />
           </div>

@@ -1,0 +1,434 @@
+# 🏗️ Analisis Arsitektur Komprehensif — Titiknol Reserve Web
+
+---
+
+## 1. Ringkasan Proyek (Project Overview)
+
+### Tujuan Utama
+**Titiknol Reserve** adalah **sistem manajemen kafe/restoran multi-cabang berbasis web** yang dirancang untuk jaringan kafe "Nol Coffee". Aplikasi ini menyediakan solusi end-to-end mulai dari **pemesanan online oleh pelanggan**, **Point of Sale (POS) untuk kasir**, **manajemen dapur**, **absensi karyawan berbasis geofencing**, hingga **analitik pendapatan** dan **dashbord super admin**.
+
+### Masalah yang Diselesaikan
+| Masalah | Solusi Titiknol Reserve |
+|---|---|
+| Pemesanan manual (antrean panjang) | Menu digital + Pembayaran QRIS via Midtrans |
+| Manajemen pesanan multi-cabang | Arsitektur multi-branch dengan isolasi data per cabang |
+| Absensi karyawan yang tidak akurat | Clock In/Out dengan **selfie photo**, **device fingerprint**, dan **geofencing** |
+| Laporan keuangan manual | Dashboard analitik real-time (revenue, top products, payment breakdown) |
+| Diskon yang sulit dikelola | Sistem voucher fleksibel (percentage, fixed, happy hour, per-cabang) |
+| Komunikasi pelanggan pasca-order | Notifikasi WhatsApp otomatis saat pembayaran berhasil |
+
+---
+
+## 2. Analisis Tech Stack & Framework
+
+### Bahasa Pemrograman
+- **TypeScript** — Digunakan secara menyeluruh di seluruh codebase (frontend + backend)
+
+### Framework / Library Utama
+
+| Layer | Teknologi | Versi | Peran |
+|---|---|---|---|
+| **Full-Stack Framework** | Next.js (App Router) | `^15.5.12` | Server-side rendering, API routes, routing |
+| **UI Library** | React | `19.0.0` | Component-based UI |
+| **Styling** | Tailwind CSS | `^4` | Utility-first CSS |
+| **Animasi** | Framer Motion | `^12.29.2` | Smooth page transitions & micro-animations |
+| **Ikon** | Lucide React | `^0.562.0` | Icon library |
+| **Charting** | Recharts | `^3.7.0` | Dashboard charts (revenue, traffic) |
+| **QR Code** | qrcode.react | `^4.2.0` | Generate QR tiket pesanan |
+| **Device Fingerprint** | @fingerprintjs/fingerprintjs | `^5.0.1` | Identifikasi unik perangkat karyawan |
+| **CSS Utilities** | clsx, tailwind-merge | latest | Conditional class merging |
+
+### Database & ORM
+
+| Komponen | Teknologi |
+|---|---|
+| **Database** | PostgreSQL (hosted via Supabase) |
+| **ORM** | Prisma `^5.10.2` |
+| **Connection** | Dual URL — `DATABASE_URL` (pooled) + `DIRECT_URL` (direct) |
+
+### Integrasi Eksternal
+
+| Layanan | Library | Fungsi |
+|---|---|---|
+| **Midtrans** | `midtrans-client ^1.4.3` + Custom [lib/midtrans.ts](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/lib/midtrans.ts) | Payment Gateway (QRIS, Snap token) |
+| **Supabase** | `@supabase/supabase-js ^2.91.0` | Storage (gambar produk), Auth infrastructure |
+| **WhatsApp API** | Custom [lib/whatsapp.ts](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/lib/whatsapp.ts) | Notifikasi pelanggan otomatis |
+
+### Tools & Environment
+
+| Tool | Fungsi |
+|---|---|
+| **PWA** (next-pwa + Workbox) | Progressive Web App — installable di HP |
+| **Jest** `^30.2.0` + ts-jest | Unit testing |
+| **ESLint** | Linting |
+| **PostCSS** | CSS processing pipeline |
+| **nanoid** (customAlphabet) | Generate Order ID alfanumerik 15 karakter |
+
+---
+
+## 3. Dokumentasi API
+
+Aplikasi ini memiliki **32 API route handlers** yang diorganisir dalam App Router Next.js.
+
+### 3.1 Public API (Tanpa Auth)
+
+| Endpoint | Method | Deskripsi | Request | Response |
+|---|---|---|---|---|
+| `/api/products` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Daftar menu + harga per-cabang | `?branchId=xxx` | `Product[]` dengan branch price override |
+| `/api/branches` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Daftar cabang aktif | — | `Branch[]` |
+| `/api/tokenizer` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Buat order baru + generate Midtrans Snap token | `{ customerName, whatsapp, items[], orderType, branchId, voucherId?, subtotal?, discountAmount? }` | `{ token, orderId }` |
+| `/api/order/[id]` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Detail order berdasarkan ID | Path param [id](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/middleware.ts#5-94) | `Order` object |
+| `/api/vouchers/validate` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Validasi kode voucher | `{ code, cartTotal, items[], branchId? }` | `{ valid, discount, voucher, message }` |
+| `/api/payment/reset` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Reset/cancel pembayaran Midtrans | `{ orderId }` | `{ success }` |
+
+### 3.2 Webhook API
+
+| Endpoint | Method | Deskripsi |
+|---|---|---|
+| `/api/notification` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | **Midtrans Webhook** — Menerima notifikasi status transaksi, verifikasi SHA-512 signature, update order status, kirim WhatsApp |
+| `/api/notify-whatsapp` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Internal endpoint — Kirim pesan WhatsApp ke pelanggan |
+
+### 3.3 Auth API
+
+| Endpoint | Method | Deskripsi | Request |
+|---|---|---|---|
+| `/api/auth/staff/login` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Login staff via Employee ID | `{ employeeId }` |
+| `/api/auth/staff/logout` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Logout staff (clear cookie) | — |
+| `/api/auth/super-admin/login` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Login super admin via PIN | `{ pin }` |
+| `/api/auth/super-admin/logout` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Logout super admin | — |
+| `/api/auth/me` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Get current user session | — |
+| `/api/auth/session` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Validate active session | — |
+
+### 3.4 Admin/Staff API (Protected — `staff_session` or `super_admin_session` cookie)
+
+| Endpoint | Method | Deskripsi |
+|---|---|---|
+| `/api/admin/orders` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Daftar pesanan (filtered per branch) |
+| `/api/admin/update-status` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Update status order (PAID→PREPARING→READY→COMPLETED) |
+| `/api/admin/products` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) [PUT](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#108-173) [DELETE](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#174-184) | Full CRUD produk/menu + branch price override |
+| `/api/admin/revenue` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Analitik pendapatan (chart, top products, payment methods, branch breakdown) |
+| `/api/admin/employees` | `GET/POST/PUT/DELETE` | CRUD karyawan |
+| `/api/admin/attendance` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Daftar absensi karyawan |
+| `/api/admin/branches` | `GET/POST` | CRUD cabang |
+| `/api/admin/branches/[id]` | `PUT/DELETE` | Update/hapus cabang spesifik |
+| `/api/admin/settings` | `GET/PUT` | Pengaturan global |
+| `/api/admin/vouchers` | `GET/POST` | CRUD voucher |
+| `/api/admin/vouchers/[id]` | `PUT/DELETE` | Update/hapus voucher spesifik |
+| `/api/admin/vouchers/analytics` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Analitik penggunaan voucher |
+| `/api/admin/pos-history` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Riwayat transaksi POS |
+| `/api/cash-order` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Buat order tunai (dari POS kasir) |
+| `/api/upload` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Upload gambar produk (max 2MB) |
+| `/api/super-admin/dashboard` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Dashboard overview (revenue, staff, traffic, top items) |
+
+### 3.5 Attendance API
+
+| Endpoint | Method | Deskripsi |
+|---|---|---|
+| `/api/attendance/clock` | [POST](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/attendance/clock/route.ts#6-118) | Clock In / Clock Out (+ selfie, GPS, device fingerprint) |
+| `/api/attendance/status` | [GET](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/app/api/admin/products/route.ts#6-56) | Status absensi hari ini |
+
+---
+
+## 4. Analisis Alur Kerja (Workflow Analysis)
+
+### 4.1 Alur Pemesanan Online (Customer Flow)
+
+```mermaid
+sequenceDiagram
+    actor C as Customer
+    participant FE as Frontend (Menu Page)
+    participant API as Next.js API
+    participant DB as PostgreSQL
+    participant MT as Midtrans
+    participant WA as WhatsApp API
+
+    C->>FE: Buka halaman /menu?branchId=xxx
+    FE->>API: GET /api/products?branchId=xxx
+    API->>DB: Query Product + ProductBranch
+    DB-->>API: Products with branch prices
+    API-->>FE: Product list (JSON)
+    
+    C->>FE: Pilih menu, isi nama & WhatsApp
+    C->>FE: (Optional) Input voucher code
+    FE->>API: POST /api/vouchers/validate
+    API->>DB: Validate voucher rules
+    DB-->>API: Voucher valid + discount amount
+    API-->>FE: { valid: true, discount: 5000 }
+    
+    C->>FE: Klik "Bayar"
+    FE->>API: POST /api/tokenizer
+    API->>DB: Create Order (status: PENDING)
+    API->>MT: createTransaction (Snap API)
+    MT-->>API: { token, redirect_url }
+    API->>DB: Save snapToken to Order
+    API-->>FE: { token, orderId }
+    
+    FE->>MT: Open Snap Payment Popup
+    C->>MT: Scan QRIS / Pay
+    MT->>API: POST /api/notification (Webhook)
+    API->>API: Verify SHA-512 Signature
+    API->>DB: Update Order status → PAID
+    API->>WA: Send payment confirmation
+    WA-->>C: 🎉 WhatsApp: "Pesanan berhasil dibayar!"
+    
+    C->>FE: Redirect ke /ticket/[orderId]
+    FE->>API: GET /api/order/[id]
+    API-->>FE: Order details + QR Code
+```
+
+### 4.2 Alur POS Kasir (Cash Order)
+
+```mermaid
+sequenceDiagram
+    actor S as Staff/Kasir
+    participant POS as POS Page
+    participant API as Next.js API
+    participant DB as PostgreSQL
+
+    S->>POS: Login via Employee ID
+    POS->>API: POST /api/auth/staff/login
+    API->>DB: Verify Employee + Branch
+    API-->>POS: Set staff_session cookie
+
+    S->>POS: Pilih menu, input customer
+    S->>POS: Klik "Order Tunai"
+    POS->>API: POST /api/cash-order
+    API->>DB: Create Order (status: PAID, source: CASHIER_POS, paymentType: CASH)
+    API-->>POS: Order created
+    
+    S->>POS: Lihat Kitchen Display
+    POS->>API: GET /api/admin/orders
+    API->>DB: Fetch orders (filtered by branch)
+    API-->>POS: Orders list
+    
+    S->>POS: Update status: PREPARING → READY → COMPLETED
+    POS->>API: POST /api/admin/update-status
+    API->>DB: Update order.status
+```
+
+### 4.3 Mekanisme Autentikasi & Otorisasi
+
+Sistem menggunakan **cookie-based session** tanpa JWT/token tradisional:
+
+| Aktor | Cookie | Login Method | Hak Akses |
+|---|---|---|---|
+| **Staff** | `staff_session` | Employee ID | Akses terbatas pada cabang sendiri |
+| **Super Admin** | `super_admin_session` | PIN (env var atau DB) | Akses penuh semua cabang |
+| **Global Staff** | `staff_session` (isGlobalAccess=true) | Employee ID | Akses semua cabang |
+
+**Multi-Branch Access Control** (diimplementasikan di [middleware.ts](file:///Users/macbooksale/Project.%20/tiknol-reserve-web/middleware.ts)):
+1. **Home Branch** — Setiap karyawan terikat ke 1 cabang utama
+2. **Additional Access** — Karyawan bisa mendapat akses tambahan ke cabang lain (`EmployeeAccess` junction table)
+3. **Global Access** — Flag khusus untuk owner/HQ yang bisa akses semua cabang
+4. **Branch Validation** — Middleware mengecek `branchId` pada setiap request ke `/admin/*` dan `/api/admin/*`
+
+### 4.4 Sistem Absensi dengan Geofencing
+
+**Algoritma Haversine** digunakan untuk menghitung jarak karyawan dari lokasi cabang:
+
+```
+distance = R × 2 × atan2(√a, √(1-a))
+dimana:
+  a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
+  R = 6371 km (radius bumi)
+```
+
+**Alur Validasi Clock In:**
+1. ✅ Validasi Employee ID exists & active
+2. ✅ Device fingerprint check (bind on first use, warn on mismatch)
+3. ✅ Geofencing — Haversine distance ≤ `branch.maxRadius` (default 100m)
+4. 📸 Simpan selfie photo ke server (`/public/uploads/attendance/`)
+5. 💾 Create Attendance record dengan server timestamp
+
+### 4.5 Sistem Voucher (Proses Bisnis Unik)
+
+Voucher mendukung **7 lapis validasi**:
+1. **Active status** check
+2. **Tanggal validitas** (validFrom – validUntil)
+3. **Happy Hour** window (jam mulai–selesai)
+4. **Kategori produk** yang berlaku
+5. **Item spesifik** yang berlaku
+6. **Usage limit** (global + per-user)
+7. **Branch restriction** — voucher hanya berlaku di cabang tertentu
+
+**Tipe Voucher:** `PERCENTAGE`, `FIXED_AMOUNT`, `FREE_ITEM`, `BUY_X_GET_Y`
+
+### 4.6 Keamanan Webhook Midtrans
+
+Webhook `/api/notification` memverifikasi signature menggunakan **SHA-512**:
+```
+expectedSignature = SHA512(order_id + status_code + gross_amount + ServerKey)
+```
+Request dengan signature tidak valid akan ditolak dengan status **403 Forbidden**.
+
+---
+
+## 5. Use Case Diagram
+
+### Identifikasi Aktor
+
+| Aktor | Deskripsi |
+|---|---|
+| 🧑 **Customer** | Pelanggan yang memesan via web |
+| 👨‍💼 **Staff/Kasir** | Karyawan cabang (POS, kitchen, attendance) |
+| 👑 **Super Admin** | Pemilik/manager (akses penuh semua cabang) |
+| 🤖 **Midtrans** | Payment gateway eksternal (webhook) |
+
+### Daftar Use Cases per Aktor
+
+**Customer:**
+- Browse menu berdasarkan cabang
+- Lihat harga per-cabang
+- Pesan dan bayar via QRIS
+- Input voucher/diskon
+- Lihat status pesanan (ticket)
+- Terima notifikasi WhatsApp
+
+**Staff/Kasir:**
+- Login via Employee ID
+- Buat order tunai (POS)
+- Update status pesanan (Kitchen Display)
+- Lihat riwayat POS
+- Clock In / Clock Out (absensi + selfie + GPS)
+- Kelola menu (tambah/edit/hapus)
+
+**Super Admin:**
+- Login via PIN
+- Lihat dashboard overview (semua cabang)
+- Kelola cabang (CRUD)
+- Kelola karyawan (CRUD + assign branch)
+- Kelola voucher (CRUD + analytics)
+- Lihat laporan revenue (chart, payment split, branch breakdown)
+- Kelola pengaturan global
+- Upload gambar produk
+
+**Midtrans (System):**
+- Kirim notifikasi pembayaran (webhook)
+
+### Mermaid.js Use Case Diagram
+
+```mermaid
+graph TB
+    subgraph Actors
+        CUST["🧑 Customer"]
+        STAFF["👨‍💼 Staff / Kasir"]
+        SADMIN["👑 Super Admin"]
+        MIDTRANS["🤖 Midtrans API"]
+    end
+
+    subgraph UC_PUBLIC["📱 Public Module"]
+        UC1["Browse Menu per Cabang"]
+        UC2["Pesan & Bayar via QRIS"]
+        UC3["Input Voucher / Diskon"]
+        UC4["Lihat Status Pesanan / Ticket"]
+        UC5["Terima Notifikasi WhatsApp"]
+    end
+
+    subgraph UC_POS["💰 POS Module"]
+        UC6["Login Staff"]
+        UC7["Buat Order Tunai / QRIS"]
+        UC8["Update Status Pesanan"]
+        UC9["Kitchen Display"]
+        UC10["Lihat Riwayat POS"]
+    end
+
+    subgraph UC_ATTENDANCE["⏰ Attendance Module"]
+        UC11["Clock In / Clock Out"]
+        UC12["Selfie + Geofencing"]
+        UC13["Device Fingerprint Binding"]
+    end
+
+    subgraph UC_ADMIN["⚙️ Admin Module"]
+        UC14["Dashboard Overview"]
+        UC15["Kelola Cabang (CRUD)"]
+        UC16["Kelola Karyawan (CRUD)"]
+        UC17["Kelola Menu / Produk"]
+        UC18["Kelola Voucher + Analytics"]
+        UC19["Laporan Revenue"]
+        UC20["Upload Gambar Produk"]
+        UC21["Pengaturan Global"]
+    end
+
+    subgraph UC_SYSTEM["🔗 System Integration"]
+        UC22["Webhook Notifikasi Pembayaran"]
+        UC23["Verifikasi SHA-512 Signature"]
+    end
+
+    %% Customer Relations
+    CUST --> UC1
+    CUST --> UC2
+    CUST --> UC3
+    CUST --> UC4
+    CUST --> UC5
+
+    %% Staff Relations
+    STAFF --> UC6
+    STAFF --> UC7
+    STAFF --> UC8
+    STAFF --> UC9
+    STAFF --> UC10
+    STAFF --> UC11
+    STAFF --> UC12
+    STAFF --> UC13
+    STAFF --> UC17
+
+    %% Super Admin Relations
+    SADMIN --> UC6
+    SADMIN --> UC14
+    SADMIN --> UC15
+    SADMIN --> UC16
+    SADMIN --> UC17
+    SADMIN --> UC18
+    SADMIN --> UC19
+    SADMIN --> UC20
+    SADMIN --> UC21
+
+    %% Midtrans Relations
+    MIDTRANS --> UC22
+    UC22 --> UC23
+    UC22 --> UC8
+    UC22 --> UC5
+
+    %% Internal Dependencies
+    UC2 -.->|includes| UC3
+    UC11 -.->|includes| UC12
+    UC11 -.->|includes| UC13
+    UC7 -.->|includes| UC3
+```
+
+---
+
+## Struktur Direktori Utama
+
+```
+tiknol-reserve-web/
+├── app/
+│   ├── (public)/           # Customer-facing pages
+│   │   ├── menu/           # Menu browsing & ordering
+│   │   ├── ticket/         # Order status/ticket page
+│   │   └── page.tsx        # Landing page (branch selection)
+│   ├── (auth)/             # Login page
+│   ├── (staff)/admin/      # Staff dashboard
+│   │   ├── pos/            # Point of Sale
+│   │   ├── kitchen-online/ # Kitchen Display System
+│   │   ├── menu/           # Menu management
+│   │   └── pos-history/    # POS transaction history
+│   ├── (management)/super-admin/  # Super Admin panel
+│   │   ├── dashboard/      # Overview dashboard
+│   │   ├── branches/       # Branch management
+│   │   ├── employees/      # Employee management
+│   │   ├── vouchers/       # Voucher management
+│   │   ├── revenue/        # Revenue analytics
+│   │   ├── attendance/     # Attendance records
+│   │   └── settings/       # Global settings
+│   └── api/                # 32 API route handlers
+├── prisma/
+│   └── schema.prisma       # 10+ models, multi-branch architecture
+├── lib/
+│   ├── prisma.ts           # Prisma client singleton
+│   ├── midtrans.ts         # Midtrans Snap integration
+│   ├── whatsapp.ts         # WhatsApp notification sender
+│   └── fingerprint.ts      # Device fingerprint utility
+├── middleware.ts            # Auth guard + branch access control
+└── next.config.ts           # PWA + image domains config
+```

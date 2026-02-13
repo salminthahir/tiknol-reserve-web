@@ -47,6 +47,17 @@ export default function EmployeesPage() {
     });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [idConflict, setIdConflict] = useState(false);
+
+    // Check if new employee ID already exists (excluding current employee)
+    const checkIdConflict = (newId: string) => {
+        if (!editingId || newId === editingId) {
+            setIdConflict(false);
+            return;
+        }
+        const exists = employees.some(emp => emp.id === newId);
+        setIdConflict(exists);
+    };
 
     // Confirmation Modal State
     const [confirmState, setConfirmState] = useState<{
@@ -428,6 +439,13 @@ export default function EmployeesPage() {
                                         >
                                             <SmartphoneNfc size={14} />
                                         </button>
+                                        <button
+                                            onClick={() => triggerDelete(emp.id, emp.name)}
+                                            className="w-8 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/10 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20"
+                                            title="Delete Employee"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -454,9 +472,21 @@ export default function EmployeesPage() {
                                     <input
                                         required
                                         value={formData.id}
-                                        onChange={e => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
-                                        className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-none rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 focus:ring-[#FFBF00] dark:text-white uppercase"
+                                        onChange={e => {
+                                            const newId = e.target.value.toUpperCase();
+                                            setFormData({ ...formData, id: newId });
+                                            checkIdConflict(newId);
+                                        }}
+                                        className={`w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 rounded-xl p-4 font-bold text-sm outline-none focus:ring-2 dark:text-white uppercase ${idConflict
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-transparent focus:ring-[#FFBF00]'
+                                            }`}
                                     />
+                                    {idConflict && (
+                                        <p className="text-xs text-red-500 font-bold mt-1 flex items-center gap-1">
+                                            ⚠️ ID "{formData.id}" sudah digunakan oleh karyawan lain
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -576,7 +606,7 @@ export default function EmployeesPage() {
 
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || idConflict}
                                 className="w-full bg-[#FFBF00] text-black font-black py-4 rounded-xl text-sm hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,191,0,0.3)] disabled:opacity-50"
                             >
                                 {isSubmitting ? 'SAVING...' : 'SAVE CHANGES'}

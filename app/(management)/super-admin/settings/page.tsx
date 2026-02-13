@@ -2,23 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Save, Globe, Store, LogOut, User, Phone, Building, Sun, Moon } from 'lucide-react';
+import { Save, LogOut, User, Sun, Moon } from 'lucide-react';
 import FormSkeleton from '@/app/components/skeletons/FormSkeleton';
 
 export default function SettingsPage() {
     const router = useRouter();
     const [settings, setSettings] = useState({
-        storeName: '',
-        storeAddress: '',
-        storePhone: '',
         adminName: '',
-        officeLatitude: '',
-        officeLongitude: '',
-        maxRadius: ''
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'store' | 'location'>('store');
+    const [activeTab, setActiveTab] = useState<'store'>('store');
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
     useEffect(() => {
@@ -34,13 +28,7 @@ export default function SettingsPage() {
             const data = await res.json();
             if (data && !data.error) {
                 setSettings({
-                    storeName: data.storeName || 'Nol Coffee',
-                    storeAddress: data.storeAddress || '',
-                    storePhone: data.storePhone || '',
                     adminName: data.adminName || 'Super Admin',
-                    officeLatitude: data.officeLatitude?.toString() || '',
-                    officeLongitude: data.officeLongitude?.toString() || '',
-                    maxRadius: data.maxRadius?.toString() || '100'
                 });
             }
         } catch (error) {
@@ -71,25 +59,6 @@ export default function SettingsPage() {
         }
     };
 
-    const getLocation = () => {
-        if (!navigator.geolocation) {
-            alert('Geolocation tidak didukung browser ini.');
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setSettings({
-                    ...settings,
-                    officeLatitude: position.coords.latitude.toString(),
-                    officeLongitude: position.coords.longitude.toString()
-                });
-                alert('Lokasi saat ini berhasil diambil!');
-            },
-            () => {
-                alert('Gagal mengambil lokasi. Pastikan GPS aktif.');
-            }
-        );
-    };
 
     const handleLogout = async () => {
         if (!confirm('Are you sure you want to logout?')) return;
@@ -135,118 +104,31 @@ export default function SettingsPage() {
                                     : 'text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]'
                                     }`}
                             >
-                                <Store className="inline-block mr-2" size={16} />
-                                Store Info
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('location')}
-                                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wide transition-all ${activeTab === 'location'
-                                    ? 'bg-[#FFBF00] text-black'
-                                    : 'text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]'
-                                    }`}
-                            >
-                                <Globe className="inline-block mr-2" size={16} />
-                                Geofencing
+                                <User className="inline-block mr-2" size={16} />
+                                Profile Info
                             </button>
                         </div>
 
                         <form onSubmit={handleSave} className="p-8">
-                            {/* Store Info Tab */}
+                            {/* Profile Info Tab */}
                             {activeTab === 'store' && (
                                 <div className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Store Name</label>
+                                        <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Admin Display Name</label>
                                         <input
                                             type="text"
-                                            value={settings.storeName}
-                                            onChange={e => setSettings({ ...settings, storeName: e.target.value })}
+                                            value={settings.adminName}
+                                            onChange={e => setSettings({ ...settings, adminName: e.target.value })}
                                             className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 font-bold focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all"
-                                            placeholder="Nol Coffee"
+                                            placeholder="Super Admin"
                                         />
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Store Address</label>
-                                        <textarea
-                                            value={settings.storeAddress}
-                                            onChange={e => setSettings({ ...settings, storeAddress: e.target.value })}
-                                            className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 font-medium focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all resize-none"
-                                            placeholder="Jl. Contoh No. 123, Jakarta"
-                                            rows={2}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Phone Number</label>
-                                        <div className="relative">
-                                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
-                                                type="tel"
-                                                value={settings.storePhone}
-                                                onChange={e => setSettings({ ...settings, storePhone: e.target.value })}
-                                                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 pl-12 font-medium focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all"
-                                                placeholder="08123456789"
-                                            />
-                                        </div>
-                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                        Pengaturan toko lainnya (Nama, Alamat, Telepon) sekarang dikelola per-cabang di menu **Branch Management**.
+                                    </p>
                                 </div>
                             )}
 
-                            {/* Geofencing Tab */}
-                            {activeTab === 'location' && (
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Latitude</label>
-                                            <input
-                                                required
-                                                type="number"
-                                                step="any"
-                                                value={settings.officeLatitude}
-                                                onChange={e => setSettings({ ...settings, officeLatitude: e.target.value })}
-                                                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 font-mono text-sm focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all"
-                                                placeholder="-6.2088..."
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Longitude</label>
-                                            <input
-                                                required
-                                                type="number"
-                                                step="any"
-                                                value={settings.officeLongitude}
-                                                onChange={e => setSettings({ ...settings, officeLongitude: e.target.value })}
-                                                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 font-mono text-sm focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all"
-                                                placeholder="106.8456..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Allowed Radius (Meters)</label>
-                                        <div className="relative">
-                                            <input
-                                                required
-                                                type="number"
-                                                value={settings.maxRadius}
-                                                onChange={e => setSettings({ ...settings, maxRadius: e.target.value })}
-                                                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-[#333] rounded-xl p-4 font-mono text-lg font-bold focus:ring-2 focus:ring-[#FFBF00] focus:border-transparent outline-none transition-all"
-                                                placeholder="100"
-                                            />
-                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 uppercase">Meters</div>
-                                        </div>
-                                        <p className="text-xs text-gray-400 mt-2">Employees must be within this range to Clock In/Out.</p>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={getLocation}
-                                        className="w-full bg-gray-100 dark:bg-[#222] text-black dark:text-white font-bold py-4 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-[#333] transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <MapPin size={18} /> Get Current Location
-                                    </button>
-                                </div>
-                            )}
 
                             {/* Save Button */}
                             <div className="mt-8 pt-6 border-t border-gray-100 dark:border-[#222]">

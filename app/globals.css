@@ -1,8 +1,20 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FFFFFF;
+  --foreground: #0F172A;
+  /* slate-900 for better contrast */
+  --muted: #64748B;
+  --border: #E2E8F0;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #F8FAFC;
+  --muted: #94A3B8;
+  --border: #1E293B;
 }
 
 @theme inline {
@@ -12,11 +24,42 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    /* @apply transition-colors duration-300 ease-in-out; */
   }
+
+  /* Selectively animate common interactive elements and containers */
+  div,
+  section,
+  header,
+  footer,
+  nav,
+  button,
+  a,
+  span,
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  input,
+  select,
+  textarea {
+    transition-property: background-color, color, border-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Disable standard CSS transition when View Transition is active to avoid conflict */
+    transition-duration: 0ms;
+  }
+}
+
+/* View Transitions Overrides */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 body {
@@ -26,9 +69,17 @@ body {
 }
 
 @keyframes flash {
-  0% { opacity: 0; }
-  50% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .animate-flash {

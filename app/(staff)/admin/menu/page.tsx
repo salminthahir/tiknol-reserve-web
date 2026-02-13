@@ -157,7 +157,16 @@ export default function MenuManagerPage() {
     setIsSubmitting(true);
 
     try {
-      const payload = { ...formData, price: Number(formData.price) };
+      const payload = {
+        ...formData,
+        price: Number(formData.price),
+        // Send branch config
+        productBranches: branches.map(b => ({
+          branchId: b.id,
+          isAvailable: branchAvailability[b.id] || false,
+          branchPrice: branchPrices[b.id] ? Number(branchPrices[b.id]) : null
+        }))
+      };
       let res;
 
       if (editMode) {
@@ -304,7 +313,14 @@ export default function MenuManagerPage() {
       });
       setUploadPreview(null);
       setBranchPrices({});
-      setBranchAvailability({});
+      setBranchPrices({});
+
+      // Auto-check current user's branch
+      const defaultAvailability: Record<string, boolean> = {};
+      if (currentUser?.branchId) {
+        defaultAvailability[currentUser.branchId] = true;
+      }
+      setBranchAvailability(defaultAvailability);
     }
     setIsModalOpen(true);
   };
@@ -634,7 +650,7 @@ export default function MenuManagerPage() {
                 </div>
 
                 {/* Branch Pricing & Availability Section */}
-                {editMode && branches.length > 0 && (
+                {branches.length > 0 && (
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex items-center gap-2 mb-3">
                       <DollarSign size={16} className="text-[#FBC02D]" />

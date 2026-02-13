@@ -21,6 +21,9 @@ export default function BranchFormModal({ isOpen, onClose, onSuccess, branch }: 
         address: '',
         phone: '',
         active: true,
+        latitude: 0,
+        longitude: 0,
+        maxRadius: 100,
     });
 
     useEffect(() => {
@@ -29,8 +32,11 @@ export default function BranchFormModal({ isOpen, onClose, onSuccess, branch }: 
                 code: branch.code || '',
                 name: branch.name,
                 address: branch.address || '',
-                phone: '', // Phone might not be in Branch interface yet, check API/Schema. Assuming string.
-                active: true, // Assuming active is part of branch, or default true
+                phone: '',
+                active: true,
+                latitude: branch.latitude || 0,
+                longitude: branch.longitude || 0,
+                maxRadius: branch.maxRadius || 100,
             });
             // Note: If Branch interface doesn't have phone/active, we need to check schema.
             // Based on previous analysis, branch has id, name, address, code. 
@@ -42,6 +48,9 @@ export default function BranchFormModal({ isOpen, onClose, onSuccess, branch }: 
                 address: '',
                 phone: '',
                 active: true,
+                latitude: 0,
+                longitude: 0,
+                maxRadius: 100,
             });
         }
     }, [branch, isOpen]);
@@ -157,7 +166,7 @@ export default function BranchFormModal({ isOpen, onClose, onSuccess, branch }: 
                         </div>
 
                         <div className="col-span-2">
-                            <label className="block text-xs font-bold uppercase text-zinc-500 mb-1">Nomor Telepon (Optional)</label>
+                            <label className="block text-xs font-bold uppercase text-zinc-500 mb-1 font-outfit">Nomor Telepon (Optional)</label>
                             <div className="relative">
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
                                 <input
@@ -167,6 +176,65 @@ export default function BranchFormModal({ isOpen, onClose, onSuccess, branch }: 
                                     className="w-full pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                                     placeholder="08..."
                                 />
+                            </div>
+                        </div>
+
+                        {/* Geofencing Section */}
+                        <div className="col-span-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                            <h3 className="text-sm font-black dark:text-white mb-4">Geofencing Absensi</h3>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Latitude</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={formData.latitude}
+                                        onChange={e => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Longitude</label>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={formData.longitude}
+                                        onChange={e => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-mono"
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">Radius Absensi (Meter)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.maxRadius}
+                                        onChange={e => setFormData({ ...formData, maxRadius: parseFloat(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold"
+                                        placeholder="100"
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition((pos) => {
+                                                    setFormData({
+                                                        ...formData,
+                                                        latitude: pos.coords.latitude,
+                                                        longitude: pos.coords.longitude
+                                                    });
+                                                }, (err) => {
+                                                    alert("Gagal mengambil lokasi: " + err.message);
+                                                });
+                                            }
+                                        }}
+                                        className="w-full py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <MapPin size={14} /> Gunakan Lokasi Saat Ini
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

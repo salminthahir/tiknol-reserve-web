@@ -4,7 +4,7 @@
 jest.mock('@/lib/prisma', () => require('../../__mocks__/prisma'));
 import { prisma } from '@/lib/prisma';
 
-import { GET, POST, PATCH } from '@/app/api/admin/employees/route';
+import { GET, POST, PATCH, DELETE } from '@/app/api/admin/employees/route';
 
 function makeGetRequest(params: Record<string, string> = {}): Request {
     const url = new URL('http://localhost:3000/api/admin/employees');
@@ -190,6 +190,41 @@ describe('/api/admin/employees', () => {
             const data = await response.json();
 
             expect(response.status).toBe(400);
+        });
+    });
+
+    // ============= DELETE =============
+    describe('DELETE — Remove Employee', () => {
+        it('should delete employee successfully', async () => {
+            (prisma.employee.delete as jest.Mock).mockResolvedValue({
+                id: 'EMP-001',
+                name: 'John',
+            });
+
+            const url = new URL('http://localhost:3000/api/admin/employees');
+            url.searchParams.set('id', 'EMP-001');
+            const request = new Request(url.toString(), { method: 'DELETE' });
+
+            const response = await DELETE(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.success).toBe(true);
+            expect(prisma.employee.delete).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 'EMP-001' },
+                })
+            );
+        });
+
+        it('should return 400 when id is missing', async () => {
+            const request = new Request('http://localhost:3000/api/admin/employees', { method: 'DELETE' });
+
+            const response = await DELETE(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.error).toContain('required');
         });
     });
 });

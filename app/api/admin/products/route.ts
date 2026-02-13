@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Auto-create ProductBranch for all active branches
+    // Create ProductBranch records based on payload OR default to all active branches (safe default)
     try {
       const activeBranches = await (prisma as any).branch.findMany({
         where: { isActive: true },
@@ -83,18 +83,25 @@ export async function POST(request: Request) {
       });
 
       if (activeBranches.length > 0) {
-        await (prisma as any).productBranch.createMany({
-          data: activeBranches.map((b: any) => ({
+        const productBranchesData = activeBranches.map((b: any) => {
+          // Check if specific config was sent
+          const config = body.productBranches?.find((pb: any) => pb.branchId === b.id);
+
+          return {
             productId: newProduct.id,
             branchId: b.id,
-            isAvailable: true,
-            branchPrice: null
-          })),
+            // Use config if exists, otherwise default to FALSE (fix for showing in all branches)
+            isAvailable: config ? config.isAvailable : false,
+            branchPrice: config?.branchPrice ? Number(config.branchPrice) : null
+          };
+        });
+
+        await (prisma as any).productBranch.createMany({
+          data: productBranchesData,
           skipDuplicates: true
         });
       }
     } catch (branchErr) {
-      // Branch tables might not exist yet if migration hasn't run
       console.warn("Could not create ProductBranch records:", branchErr);
     }
 

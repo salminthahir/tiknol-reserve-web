@@ -8,6 +8,9 @@ export interface Branch {
     name: string;
     address?: string;
     code: string;
+    latitude?: number;
+    longitude?: number;
+    maxRadius?: number;
 }
 
 interface BranchSelectorProps {
