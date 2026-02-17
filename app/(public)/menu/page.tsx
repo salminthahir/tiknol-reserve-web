@@ -11,6 +11,7 @@ import { useBranch } from '@/app/context/BranchContext';
 import BranchSelector from '@/components/BranchSelector';
 import { ThemeToggle } from '@/app/components/ThemeToggle';
 import { MenuSkeleton } from './MenuSkeleton';
+import MenuWalkthrough from '@/components/MenuWalkthrough';
 
 // --- TIPE DATA ---
 type Product = {
@@ -181,7 +182,7 @@ function MenuContent() {
           className="mx-auto md:mx-0"
         />
 
-        <button onClick={() => setIsCartOpen(true)} className="hidden md:flex relative items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all active:scale-95 text-white">
+        <button id="menu-cart-btn" onClick={() => setIsCartOpen(true)} className="hidden md:flex relative items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all active:scale-95 text-white">
           <span className="text-xs font-bold uppercase">Tray</span>
           <ShoppingBag size={18} className="text-[#FBC02D]" />
           {totalItems > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FBC02D] text-black text-[9px] font-black flex items-center justify-center rounded-full">{totalItems}</span>}
@@ -210,7 +211,7 @@ function MenuContent() {
         <div className="flex-1 min-h-screen">
           {/* FILTER BAR */}
           <div className="sticky top-20 z-30 bg-[#080808]/95 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-500">
-            <div className="relative max-w-xs w-full">
+            <div id="menu-search-bar" className="relative max-w-xs w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={16} />
               <input type="text" placeholder="SEARCH..." className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-10 text-xs focus:border-[#FBC02D] transition-all text-white placeholder-neutral-600 uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
@@ -233,8 +234,8 @@ function MenuContent() {
                 <Ghost size={48} className="mb-4 opacity-50" />
                 <p className="font-mono uppercase tracking-widest">No products found</p>
               </div>
-            ) : filteredProducts.map((product) => (
-              <div key={product.id} onClick={() => handleAddToCartClick(product)} className="group relative bg-white dark:bg-[#111] border border-neutral-200 dark:border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md dark:shadow-none">
+            ) : filteredProducts.map((product, index) => (
+              <div key={product.id} id={index === 0 ? "menu-product-card-0" : undefined} onClick={() => handleAddToCartClick(product)} className="group relative bg-white dark:bg-[#111] border border-neutral-200 dark:border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md dark:shadow-none">
                 <div className="relative aspect-square overflow-hidden bg-neutral-100 dark:bg-[#1a1a1a]">
                   <Image src={product.image || '/placeholder.svg'} alt={product.name} fill sizes="20vw" className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-100 dark:opacity-80 dark:group-hover:opacity-100" />
                   <div className="absolute bottom-2 right-2 bg-[#FBC02D] text-black w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><Plus size={18} strokeWidth={3} /></div>
@@ -419,7 +420,9 @@ function MenuContent() {
               <span className="text-[10px] font-black text-neutral-400 dark:text-neutral-500 uppercase tracking-widest">Total Amount</span>
               <span className="text-2xl font-black tracking-tighter"><span className="text-[#FBC02D] text-sm mr-1">IDR</span>{totalAmount.toLocaleString()}</span>
             </div>
-            <CheckoutButton items={cart} total={totalAmount} customerName={customerName} whatsapp={whatsapp} disabled={!isFormValid} branchId={selectedBranch?.id} />
+            <div id="cart-checkout-btn">
+              <CheckoutButton items={cart} total={totalAmount} customerName={customerName} whatsapp={whatsapp} disabled={!isFormValid} branchId={selectedBranch?.id} />
+            </div>
           </div>
         </div>
       </div>
@@ -435,6 +438,7 @@ function MenuContent() {
         }
         .animate-bounce-short { animation: bounceShort 1s ease-in-out infinite; }
       `}</style>
+      <MenuWalkthrough setIsCartOpen={setIsCartOpen} />
     </div>
   );
 }

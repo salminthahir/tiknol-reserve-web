@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { createClient } from '@supabase/supabase-js';
 import { Order, OrderItem } from '@/types/order'; // Import tipe data Order
+import TicketWalkthrough from '@/components/TicketWalkthrough';
 
 // Inisialisasi Supabase Client (hanya di client-side)
 const supabase = createClient(
@@ -32,7 +33,7 @@ const OrderStatusTracker = ({ status }: { status: Order['status'] }) => {
 
 
   return (
-    <div className="w-full mb-10">
+    <div id="ticket-status-tracker" className="w-full mb-10">
       <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 border-b border-black pb-2">
         LIVE ORDER TRACKER
       </h3>
@@ -106,6 +107,7 @@ export default function TicketUI({ order }: { order: Order }) {
 
   useEffect(() => {
     if (liveOrder.status === 'PENDING') {
+      // 1. Load Snap Script (Process existing)
       const snapScript = "https://app.sandbox.midtrans.com/snap/snap.js";
       const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
       const script = document.createElement('script');
@@ -113,9 +115,37 @@ export default function TicketUI({ order }: { order: Order }) {
       script.setAttribute('data-client-key', clientKey);
       script.async = true;
       document.body.appendChild(script);
+
+      // 2. Auto-Check Status (New Feature)
+      // Call API to check status immediately on load/mount in case webhook missed
+      const checkStatus = async () => {
+        try {
+          const res = await fetch('/api/payment/check-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: liveOrder.id })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            // If updated or just different from current (e.g. PAID), update state
+            if (data.status && data.status !== liveOrder.status) {
+              setLiveOrder(prev => ({ ...prev, status: data.status }));
+              if (data.status === 'PAID') console.log("Auto-Check: Payment confirmed!");
+            }
+          }
+        } catch (error) {
+          console.error("Auto-check failed", error);
+        }
+      };
+
+      // Run check immediately
+      checkStatus();
+
+      // Cleanup script
       return () => { document.body.removeChild(script); };
     }
-  }, [liveOrder.status]);
+  }, [liveOrder.status, liveOrder.id]);
 
   const handleResume = () => {
     if (!liveOrder.snapToken) return alert("Token tidak ditemukan, hubungi admin.");
@@ -171,7 +201,7 @@ export default function TicketUI({ order }: { order: Order }) {
           {!isPending && !isFailed && <OrderStatusTracker status={liveOrder.status} />}
 
           <div className="grid grid-cols-2 gap-y-8 gap-x-4 mb-10">
-            <div>
+            <div id="ticket-order-id">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Order ID</h3>
               <p className="text-2xl font-mono font-bold">#{liveOrder.id.slice(0, 8).toUpperCase()}</p>
             </div>
@@ -250,7 +280,7 @@ export default function TicketUI({ order }: { order: Order }) {
           <div className="hidden md:block absolute -left-3 bottom-1/4 w-6 h-6 bg-[#121212] rounded-full"></div>
           <div className="text-center">
             <h2 className="text-2xl font-black uppercase tracking-tighter mb-6">ADMIT ONE</h2>
-            <div className="bg-white p-3 rounded-lg inline-block mb-6 shadow-[0_0_20px_rgba(251,192,45,0.3)]">
+            <div id="ticket-qr-code" className="bg-white p-3 rounded-lg inline-block mb-6 shadow-[0_0_20px_rgba(251,192,45,0.3)]">
               <QRCodeSVG
                 value={typeof window !== 'undefined' ? window.location.href : liveOrder.id}
                 size={180}
@@ -275,6 +305,7 @@ export default function TicketUI({ order }: { order: Order }) {
           </div>
         </div>
       </div>
+      <TicketWalkthrough />
     </div>
   );
 }

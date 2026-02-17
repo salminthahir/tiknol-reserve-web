@@ -1,88 +1,97 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppNotification } from "@/lib/whatsapp"; // Import fungsi notifikasi
+import { duitku } from "@/lib/duitku";
+import { sendWhatsAppNotification } from "@/lib/whatsapp";
 
 // Base URL aplikasi untuk URL tiket
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
 
-// Pastikan hanya ada satu deklarasi runtime dan dengan kutip
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { order_id, transaction_status, fraud_status, status_code, gross_amount, signature_key } = body;
+    // Duitku sends data as x-www-form-urlencoded usually, but let's handle JSON too if configured
+    const contentType = request.headers.get("content-type") || "";
+    let body: any;
 
-    // 0. VERIFIKASI SIGNATURE (KEAMANAN)
-    // Rumus Midtrans: SHA512(order_id + status_code + gross_amount + ServerKey)
-    const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
-    if (!serverKey) {
-      console.error("❌ MIDTRANS_SERVER_KEY tidak ditemukan di environment variables!");
-      // Jangan return error detail ke client, cukup 500
-      return NextResponse.json({ error: "Configuration Error" }, { status: 500 });
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await request.formData();
+      body = Object.fromEntries(formData);
+    } else {
+      body = await request.json();
     }
 
-    const hashInput = order_id + status_code + gross_amount + serverKey;
-    // Gunakan 'crypto' native Node.js (pastikan runtime sudah 'nodejs')
-    const crypto = require('node:crypto');
-    const expectedSignature = crypto.createHash('sha512').update(hashInput).digest('hex');
+    const {
+      merchantCode,
+      amount,
+      merchantOrderId,
+      signature,
+      resultCode,
+      reference
+    } = body;
 
-    if (signature_key !== expectedSignature) {
-      console.error(`⛔ SIGNATURE INVALID! Mock request terdeteksi dari IP: ${request.headers.get('x-forwarded-for')}`);
-      return NextResponse.json({ message: "Invalid Signature", error: "Forbidden" }, { status: 403 });
+    // 1. VERIFIKASI SIGNATURE
+    if (!duitku.validateCallbackSignature(merchantOrderId, String(amount || 0) as any, signature)) {
+      console.error(`⛔ SIGNATURE INVALID! Request from: ${request.headers.get('x-forwarded-for')}`);
+      return NextResponse.json({ message: "Invalid Signature" }, { status: 400 });
     }
 
-    console.log(`🔔 NOTIFIKASI MASUK (VALID) untuk Order ID: ${order_id}`);
-    console.log(`📊 Status Midtrans: ${transaction_status}`);
+    console.log(`🔔 DUITKU CALLBACK for Order ID: ${merchantOrderId}, Code: ${resultCode}`);
 
-    // 1. CEK DULU: APAKAH ORDER INI ADA DI DATABASE KITA?
+    // 2. CEK ORDER DI DB
     const existingOrder = await prisma.order.findUnique({
-      where: { id: order_id },
+      where: { id: merchantOrderId },
     });
 
     if (!existingOrder) {
-      console.warn(`⚠️ ORDER TIDAK DITEMUKAN: ${order_id}. Mungkin data lama yang sudah dihapus.`);
-      return NextResponse.json({ message: "Order not found, but acknowledged to stop retry" });
+      console.warn(`⚠️ ORDER TIDAK DITEMUKAN: ${merchantOrderId}`);
+      // Return 200 to satisfy Duitku retry mechanism if order is truly gone
+      return NextResponse.json({ message: "Order not found" });
     }
 
-    // 2. TENTUKAN STATUS BARU
+    // 3. TENTUKAN STATUS BARU
     let newStatus = '';
     let notificationMessage = '';
     const ticketUrl = `${APP_BASE_URL}/ticket/${existingOrder.id}`;
 
-    if (transaction_status === 'capture') {
-      if (fraud_status === 'challenge') {
-        newStatus = 'PENDING';
-      } else if (fraud_status === 'accept') {
-        newStatus = 'PAID';
-        notificationMessage = `🎉 Halo ${existingOrder.customerName}! Pesanan *Titiknol Reserve* Anda (${existingOrder.id}) telah berhasil dibayar dan sedang menunggu konfirmasi dapur kami. Pantau statusnya di sini: ${ticketUrl} ✨ Terima kasih telah memilih kami!`;
-      }
-    } else if (transaction_status === 'settlement') {
+    // Duitku Result Codes:
+    // 00 = Success
+    // 01 = Pending
+    // 02 = Failed
+    if (resultCode === '00') {
       newStatus = 'PAID';
-      notificationMessage = `🎉 Halo ${existingOrder.customerName}! Pesanan *Titiknol Reserve* Anda (${existingOrder.id}) telah berhasil dibayar dan sedang menunggu konfirmasi dapur kami. Pantau statusnya di sini: ${ticketUrl} ✨ Terima kasih telah memilih kami!`;
-    } else if (['cancel', 'deny', 'expire'].includes(transaction_status)) {
-      newStatus = 'FAILED';
-    } else if (transaction_status === 'pending') {
+      notificationMessage = `🎉 Halo ${existingOrder.customerName}! Pesanan *Titiknol Reserve* Anda (${existingOrder.id}) telah berhasil dibayar via Duitku. Pantau statusnya di sini: ${ticketUrl} ✨ Terima kasih!`;
+    } else if (resultCode === '01') {
       newStatus = 'PENDING';
+    } else {
+      newStatus = 'FAILED';
     }
 
-    // 3. UPDATE JIKA STATUS VALID
-    if (newStatus && newStatus !== existingOrder.status) { // Hanya update jika status berubah
-      await prisma.order.update({
-        where: { id: order_id },
-        data: { status: newStatus }
-      });
-      console.log(`✅ SUKSES UPDATE: Order ${order_id} jadi ${newStatus}`);
-
-      // KIRIM NOTIFIKASI WHATSAPP jika status PAID dan ada pesan
-      if (newStatus === 'PAID' && notificationMessage) {
-        await sendWhatsAppNotification({
-          customerName: existingOrder.customerName,
-          whatsapp: existingOrder.whatsapp,
-          orderId: existingOrder.id,
-          status: newStatus,
-          message: notificationMessage
+    // 4. UPDATE JIKA STATUS VALID & BERUBAH
+    // Don't revert PAID status to PENDING/FAILED easily without manual check in real usage, 
+    // but for now strict mapping is safer.
+    if (newStatus && newStatus !== existingOrder.status) {
+      // If it wants to change FROM PAID to something else, be careful. 
+      // Usually typically only update if current is PENDING or FAILED.
+      if (existingOrder.status === 'PAID' && newStatus !== 'PAID') {
+        console.warn(`⚠️ IGNORED UPDATE: Order ${merchantOrderId} is already PAID. Incoming status: ${newStatus}`);
+      } else {
+        await prisma.order.update({
+          where: { id: merchantOrderId },
+          data: { status: newStatus as any } // Cast to enum
         });
+        console.log(`✅ SUKSES UPDATE: Order ${merchantOrderId} jadi ${newStatus}`);
+
+        // KIRIM NOTIFIKASI WHATSAPP
+        if (newStatus === 'PAID' && notificationMessage) {
+          await sendWhatsAppNotification({
+            customerName: existingOrder.customerName,
+            whatsapp: existingOrder.whatsapp,
+            orderId: existingOrder.id,
+            status: newStatus,
+            message: notificationMessage
+          });
+        }
       }
     }
 

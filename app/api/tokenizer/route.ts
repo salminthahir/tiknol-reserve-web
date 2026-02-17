@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { snap } from "@/lib/midtrans";
-import { customAlphabet } from 'nanoid'; // Import customAlphabet
+import { duitku } from "@/lib/duitku";
+import { customAlphabet } from 'nanoid';
 
 // Buat generator ID dengan alphabet huruf besar (A-Z) dan angka (0-9)
 const generateOrderId = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 15);
@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { customerName, whatsapp, items, orderType, voucherId, subtotal, discountAmount, branchId } = body;
+    const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_BASE_URL || "http://localhost:3000";
 
     // Validation
     if (!branchId) {
@@ -46,59 +47,49 @@ export async function POST(request: Request) {
         discountAmount: finalDiscount,
         items: items,
         status: "PENDING",
-        paymentType: "QRIS",
+        paymentType: "QRIS", // Default type, can be updated by callback
         voucherId: voucherId || null,
         orderSource: "WEB_CUSTOMER",
       },
     });
 
-    // Prepare Midtrans Parameters
-    const itemDetails = items.map((item: any) => ({
-      id: String(item.id),
-      price: item.price,
-      quantity: item.qty,
-      name: `${item.name}${item.custom ? ` (${item.custom.temp}/${item.custom.size})` : ''}`,
-    }));
+    // Prepare Product Details String for Duitku
+    const productDetails = items.map((item: any) =>
+      `${item.name} x${item.qty}`
+    ).join(', ');
 
-    // Add discount as negative line item if voucher applied
-    if (finalDiscount > 0) {
-      itemDetails.push({
-        id: 'DISCOUNT',
-        price: -finalDiscount,
-        quantity: 1,
-        name: `Voucher Discount (${voucherId})`,
-      });
-    }
-
-    const parameter = {
-      transaction_details: {
-        order_id: String(newOrder.id),
-        gross_amount: finalTotal,
-      },
-      item_details: itemDetails,
-      customer_details: {
-        first_name: customerName,
-        phone: whatsapp,
-      },
-    };
-
-    // 4. Minta Token
-    const transaction = await snap.createTransaction(parameter);
-
-    // 5. Simpan Token
-    await prisma.order.update({
-      where: { id: newOrder.id },
-      data: { snapToken: transaction.token },
+    // Call Duitku API
+    const paymentResponse = await duitku.requestPayment({
+      merchantOrderId: newOrder.id,
+      amount: finalTotal,
+      paymentMethod: body.paymentMethod || '', // Use selected method from frontend
+      productDetails: productDetails,
+      customerVaName: customerName,
+      email: 'customer@example.com', // Dummy email if not collected
+      phoneNumber: whatsapp,
+      callbackUrl: `${APP_BASE_URL}/api/notification`,
+      returnUrl: `${APP_BASE_URL}/ticket/${newOrder.id}`,
     });
 
-    // 6. Return
+    if (!paymentResponse.paymentUrl) {
+      throw new Error(paymentResponse.statusMessage || "Failed to get payment URL");
+    }
+
+    // Update Order with Payment Reference (reusing snapToken field for now or can add new field)
+    // Using snapToken field temporarily to store paymentUrl or Reference
+    await prisma.order.update({
+      where: { id: newOrder.id },
+      data: { snapToken: paymentResponse.reference || paymentResponse.paymentUrl },
+    });
+
+    // Return Payment URL
     return NextResponse.json({
-      token: transaction.token,
+      paymentUrl: paymentResponse.paymentUrl,
       orderId: newOrder.id
     });
 
   } catch (error: any) {
-    console.error("Error creating transaction:", error);
+    console.error("Error creating Duitku transaction:", error);
     return NextResponse.json(
       { error: "Gagal memproses order", details: error.message },
       { status: 500 }
