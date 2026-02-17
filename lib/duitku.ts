@@ -2,7 +2,9 @@ import crypto from 'crypto';
 
 const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || "";
 const MERCHANT_KEY = process.env.DUITKU_MERCHANT_KEY || "";
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// Default to sandbox if DUITKU_SANDBOX is 'true', otherwise rely on NODE_ENV, but favor explicit config
+const IS_SANDBOX = process.env.DUITKU_SANDBOX === 'true';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' && !IS_SANDBOX;
 
 // Duitku Endpoints
 const ENDPOINTS = {
