@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      { // Tambahkan Supabase Storage
+        protocol: 'https',
+        hostname: 'dhpeqqscxivmbpihkflt.supabase.co',
+        port: '',
+        pathname: '/**',
+      },
       { // Tambahkan placehold.co
         protocol: 'https',
         hostname: 'placehold.co',
@@ -40,9 +46,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-})(nextConfig);
+export default nextConfig;

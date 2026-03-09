@@ -39,7 +39,7 @@ export default function Home() {
           <p className="text-[#FBC02D] font-mono tracking-[0.3em] text-sm mb-6 animate-pulse">WELCOME TO THE RESERVE</p>
           <h2 className="text-[15vw] leading-[0.8] font-black tracking-tighter uppercase mb-8">
             BREW<br />
-            <span className="text-transparent stroke-text">CULTURE</span>
+            <span className="text-transparent" style={{ WebkitTextStroke: '2px #F5F5F5' }}>CULTURE</span>
           </h2>
           <Link
             href="/menu"
@@ -115,7 +115,7 @@ export default function Home() {
         <div className="p-8 lg:p-20 border-b lg:border-b-0 lg:border-r border-[#FBC02D]/20 bg-[#1A1A1A]">
           <span className="text-[#FBC02D] font-mono text-xs mb-4 block">02 — LOCATIONS</span>
           <h3 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-4">
-            OUR<br /><span className="text-transparent stroke-text-thin">OUTLETS</span>
+            OUR<br /><span className="text-transparent" style={{ WebkitTextStroke: '1px #F5F5F5', color: 'transparent' }}>OUTLETS</span>
           </h3>
           <p className="text-gray-500 text-xs font-mono mb-12 animate-pulse">
             [ CLICK LOCATION TO VIEW MAP ]
@@ -156,7 +156,7 @@ export default function Home() {
                 )}
               </div>
               <p className="text-gray-400 pl-8 text-sm leading-relaxed border-l border-[#333] ml-2">
-                Jl. Ikan Tombro, Mojolangu, Kec. Lowokwaru,<br />Kota Malang, Jawa Timur.
+                Jl. Joyo Tambaksari, Merjosari, Kec. Lowokwaru,<br />Kota Malang, Jawa Timur.
               </p>
             </div>
 
@@ -300,16 +300,8 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .stroke-text {
-          -webkit-text-stroke: 2px #F5F5F5;
-        }
-        .stroke-text-thin {
-          -webkit-text-stroke: 1px #F5F5F5;
-          color: transparent;
-        }
-      `}</style>
     </div>
   );
 }
+
+{/* ADMIN GATE MODAL */ }

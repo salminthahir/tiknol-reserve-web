@@ -41,7 +41,7 @@ type CartItem = Product & {
 };
 
 function MenuContent() {
-  const { selectedBranch, setBranch } = useBranch();
+  const { selectedBranch, setBranch, locationStatus, detectNearestBranch, setShowSelector } = useBranch();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -59,8 +59,31 @@ function MenuContent() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [tempCustom, setTempCustom] = useState<Customization>({ temp: 'ICE', size: 'REGULAR' });
 
+  // STATE BARU: Custom Location Consent Popup
+  const [showConsent, setShowConsent] = useState(false);
+
   // --- LOGIC REDIRECT ---
   const orderId = searchParams.get('order_id');
+
+  // Periksa apakah user belum memilih branch dan status lokasi masih idle
+  useEffect(() => {
+    // Tampilkan consent jika belum ada branch (bukan karena routing ticket) dan status idle
+    if (!orderId && !selectedBranch && locationStatus === 'idle' && !isLoading) {
+      setShowConsent(true);
+    } else {
+      setShowConsent(false);
+    }
+  }, [selectedBranch, locationStatus, orderId, isLoading]);
+
+  const handleAllowLocation = () => {
+    setShowConsent(false);
+    detectNearestBranch();
+  };
+
+  const handleManualSelection = () => {
+    setShowConsent(false);
+    setShowSelector(true);
+  };
 
   useEffect(() => {
     if (orderId) {
@@ -224,15 +247,24 @@ function MenuContent() {
 
           {/* GRID */}
           <div className="p-4 md:p-8 pb-32 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {!selectedBranch ? (
+
+            {locationStatus === 'requesting' && !selectedBranch && (
+              <div className="col-span-full mb-4 bg-[#FBC02D]/10 border border-[#FBC02D]/20 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                <MapPin className="w-8 h-8 text-[#FBC02D] animate-bounce mb-2" />
+                <h3 className="text-[#FBC02D] font-bold text-sm uppercase tracking-widest mb-1">Mendeteksi Lokasi Terdekat...</h3>
+                <p className="text-xs text-neutral-500 font-mono">Mohon izinkan akses lokasi pada browser Anda</p>
+              </div>
+            )}
+
+            {!selectedBranch && locationStatus !== 'requesting' ? (
               <div className="col-span-full h-64 flex flex-col items-center justify-center text-neutral-500">
                 <MapPin className="w-12 h-12 mb-4 opacity-50" />
-                <p className="font-mono uppercase tracking-widest">Select a location to view menu</p>
+                <p className="font-mono uppercase tracking-widest text-center">Select a location to view menu</p>
               </div>
             ) : filteredProducts.length === 0 && !isLoading ? (
               <div className="col-span-full h-64 flex flex-col items-center justify-center text-neutral-500">
                 <Ghost size={48} className="mb-4 opacity-50" />
-                <p className="font-mono uppercase tracking-widest">No products found</p>
+                <p className="font-mono uppercase tracking-widest text-center">No products found</p>
               </div>
             ) : filteredProducts.map((product, index) => (
               <div key={product.id} id={index === 0 ? "menu-product-card-0" : undefined} onClick={() => handleAddToCartClick(product)} className="group relative bg-white dark:bg-[#111] border border-neutral-200 dark:border-white/5 rounded-xl overflow-hidden active:scale-95 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md dark:shadow-none">
@@ -367,7 +399,48 @@ function MenuContent() {
           </div>
         )}
 
-        {/* --- CART DRAWER --- */}
+        {/* --- CUSTOM CONSENT POPUP --- */}
+        {showConsent && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            {/* Backdrop Blur */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+
+            {/* Modal Box */}
+            <div className="relative w-full max-w-sm bg-white dark:bg-[#111] border border-neutral-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-2xl animate-slide-up transition-colors duration-300">
+              <div className="p-8 text-center flex flex-col items-center">
+                {/* Icon Container with subtle pulse gradient */}
+                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#FBC02D]/10 to-transparent flex items-center justify-center mb-6 relative">
+                  <div className="absolute inset-0 rounded-full border border-[#FBC02D]/20 animate-ping opacity-50"></div>
+                  <MapPin className="text-[#FBC02D] w-10 h-10" />
+                </div>
+
+                <h2 className="text-xl font-black uppercase tracking-tight text-neutral-900 dark:text-white mb-3 leading-tight">
+                  Temukan Cabang<br />Terdekat
+                </h2>
+
+                <p className="text-sm text-neutral-500 font-mono mb-8 leading-relaxed">
+                  Izinkan Titik Nol mengakses lokasi perangkat Anda agar kami dapat menampilkan menu dan promo dari cabang yang paling dekat dengan Anda.
+                </p>
+
+                <div className="w-full space-y-3">
+                  <button
+                    onClick={handleAllowLocation}
+                    className="w-full bg-[#FBC02D] text-black py-4 rounded-xl font-black uppercase tracking-widest hover:bg-yellow-500 transition-all active:scale-95 shadow-[0_8px_16px_-4px_rgba(251,192,45,0.4)]"
+                  >
+                    Izinkan Akses Lokasi
+                  </button>
+
+                  <button
+                    onClick={handleManualSelection}
+                    className="w-full bg-transparent text-neutral-500 py-3 rounded-xl font-bold uppercase tracking-widest text-xs hover:text-neutral-900 dark:hover:text-white transition-colors border border-transparent hover:border-neutral-200 dark:hover:border-white/10"
+                  >
+                    Pilih Cabang Manual
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {isCartOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[50]" onClick={() => setIsCartOpen(false)} />}
         <div className={`fixed top-0 right-0 h-full w-[85vw] md:w-[450px] z-[60] bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl border-l border-neutral-200 dark:border-white/10 shadow-2xl flex flex-col transition-transform duration-500 ease-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="h-20 flex items-center justify-between px-6 border-b border-neutral-200 dark:border-white/10 bg-neutral-50/50 dark:bg-white/5">
@@ -438,7 +511,7 @@ function MenuContent() {
         }
         .animate-bounce-short { animation: bounceShort 1s ease-in-out infinite; }
       `}</style>
-      <MenuWalkthrough setIsCartOpen={setIsCartOpen} />
+      <MenuWalkthrough setIsCartOpen={setIsCartOpen} branchSelected={!!selectedBranch} />
     </div>
   );
 }
