@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import {
     Plus, Search, User, Smartphone, Shield, Check, X,
-    MoreHorizontal, SmartphoneNfc, Trash2, Edit, AlertTriangle, Store
+    MoreHorizontal, SmartphoneNfc, Trash2, Edit, AlertTriangle, Store, ScanFace
 } from 'lucide-react';
 import EmployeeSkeleton from '@/app/components/skeletons/EmployeeSkeleton';
+import FaceEnrollment from '@/app/components/FaceEnrollment';
 
 // --- TYPES ---
 interface Employee {
@@ -74,6 +75,15 @@ export default function EmployeesPage() {
         onConfirm: () => { }
     });
     const [isConfirming, setIsConfirming] = useState(false);
+
+    // Face Enrollment State
+    const [showFaceModal, setShowFaceModal] = useState(false);
+    const [selectedEmployeeForFace, setSelectedEmployeeForFace] = useState<{ id: string, name: string } | null>(null);
+
+    const openFaceModal = (id: string, name: string) => {
+        setSelectedEmployeeForFace({ id, name });
+        setShowFaceModal(true);
+    };
 
 
     // --- FETCH DATA ---
@@ -446,6 +456,13 @@ export default function EmployeesPage() {
                                         >
                                             <Trash2 size={14} />
                                         </button>
+                                        <button
+                                            onClick={() => openFaceModal(emp.id, emp.name)}
+                                            className="w-8 flex items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/10 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                                            title="Enroll Face"
+                                        >
+                                            <ScanFace size={14} />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -656,6 +673,34 @@ export default function EmployeesPage() {
                 </div>
             )}
 
-        </div>
+            {/* FACE ENROLLMENT MODAL */}
+            {
+                showFaceModal && selectedEmployeeForFace && (
+                    <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-[#111] w-full max-w-lg rounded-3xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-gray-100 dark:border-[#222]">
+                            <button
+                                onClick={() => setShowFaceModal(false)}
+                                className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                            <h2 className="text-xl font-black mb-4 dark:text-white">Face Enrollment</h2>
+                            <div className="mb-4">
+                                <p className="text-sm text-gray-400">Registering face for <span className="text-[#FFBF00] font-bold">{selectedEmployeeForFace.name}</span></p>
+                            </div>
+
+                            <FaceEnrollment
+                                employeeId={selectedEmployeeForFace.id}
+                                onSuccess={() => {
+                                    // Alert removed. Component handles success message.
+                                    setTimeout(() => setShowFaceModal(false), 2000);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )
+            }
+
+        </div >
     );
 }

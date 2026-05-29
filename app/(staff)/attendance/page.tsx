@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDeviceFingerprint } from '@/lib/fingerprint';
-import CameraCapture from '@/app/components/CameraCapture';
+import FaceVerification from '@/app/components/FaceVerification';
 import PWAInstallPrompt from '@/app/components/PWAInstallPrompt';
 import { MapPin, Clock, LogOut, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -86,28 +86,26 @@ export default function AttendancePage() {
         }
     };
 
-    const handleClockAction = async (photoBase64: string) => {
-        setIsSubmitting(true);
-        setMessage(null);
-        setShowCamera(false);
+    const handleClockAction = async (embedding: number[], photoBase64: string) => {
+        if (!employeeId) return;
 
-        // Initialize progress steps
+        // CLOSE THE MODAL IMMEDIATELY
+        setShowCamera(false); // Assuming setShowCamera is the equivalent of setShowFaceModal
+
+        setIsSubmitting(true); // Keeping original state variable name
+        setMessage(null);
+        setDeviceWarning(null); // Added from instruction
+        setProgressMessage('Memulai presensi...'); // Modified from instruction
+        // Initialize progress steps (modified from instruction)
         setProgressSteps([
-            { label: 'Verifikasi Perangkat', status: 'loading' },
-            { label: 'Ambil Lokasi GPS', status: 'pending' },
-            { label: 'Simpan Data Absensi', status: 'pending' }
+            { label: 'Kamera & Liveness', status: 'done' }, // Already done by component
+            { label: 'Lokasi GPS', status: 'loading' },
+            { label: 'Sinkronisasi Server', status: 'pending' }
         ]);
 
         try {
-            // Step 1: Device Fingerprint
-            setProgressMessage('Memverifikasi perangkat...');
-            await new Promise(r => setTimeout(r, 500));
+            // Step 1: Device Fingerprint (Log Only)
             const deviceId = await getDeviceFingerprint();
-            setProgressSteps(prev => [
-                { ...prev[0], status: 'done' },
-                { ...prev[1], status: 'loading' },
-                { ...prev[2], status: 'pending' }
-            ]);
 
             // Step 2: GPS
             setProgressMessage('Mengambil lokasi GPS...');
@@ -134,6 +132,7 @@ export default function AttendancePage() {
                     employeeId,
                     type,
                     photoBase64,
+                    faceEmbedding: embedding, // Send Embedding
                     deviceId,
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
@@ -240,7 +239,7 @@ export default function AttendancePage() {
         );
     }
 
-    // 2. Camera View
+    // 2. Face Verification View
     if (showCamera) {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
@@ -286,20 +285,11 @@ export default function AttendancePage() {
                 )}
 
                 <div className="flex-1 relative">
-                    <CameraCapture
-                        onCapture={handleClockAction}
-                        label={status === 'CLOCKED_IN' ? 'FOTO OUTLET (PULANG)' : 'FOTO KASIR (MASUK)'}
-                        isProcessing={isSubmitting}
+                    <FaceVerification
+                        onVerified={handleClockAction}
+                        onCancel={() => setShowCamera(false)}
                     />
                 </div>
-                {!isSubmitting && (
-                    <button
-                        onClick={() => setShowCamera(false)}
-                        className="absolute top-6 right-6 bg-white border-2 border-black px-4 py-2 font-bold uppercase tracking-wide hover:bg-[#FBC02D] transition-colors z-50 text-black text-sm"
-                    >
-                        BATAL
-                    </button>
-                )}
             </div>
         );
     }
@@ -447,3 +437,4 @@ export default function AttendancePage() {
         </div>
     );
 }
+

@@ -22,12 +22,22 @@ export default function Home() {
 
       {/* 1. NAVBAR */}
       <nav className="fixed top-0 w-full p-6 flex justify-between items-center z-50 mix-blend-difference">
-        <h1 className="text-xl font-black tracking-tighter text-white">
-          <span className="text-[#FBC02D]">.</span>NOL
-        </h1>
-        <span className="text-xs font-mono text-[#FBC02D] tracking-widest border border-[#FBC02D] px-2 py-1">
-          EST. 2020
-        </span>
+        <Link href="/" className="active:scale-95 transition-transform">
+          <h1 className="text-xl font-black tracking-tighter text-white">
+            <span className="text-[#FBC02D]">.</span>NOL
+          </h1>
+        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/shop" className="text-xs font-bold uppercase tracking-widest text-[#FBC02D] hover:text-white transition-colors">
+            SHOP
+          </Link>
+          <Link href="/menu" className="text-xs font-bold uppercase tracking-widest text-neutral-300 hover:text-white transition-colors">
+            MENU
+          </Link>
+          <span className="text-xs font-mono text-[#FBC02D] tracking-widest border border-[#FBC02D] px-2 py-1 hidden sm:inline">
+            EST. 2020
+          </span>
+        </div>
       </nav>
 
       {/* 2. HERO SECTION */}

@@ -44,6 +44,11 @@ export default function POSPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [customerPosName, setCustomerPosName] = useState(''); // STATE BARU: Nama pelanggan opsional
+
+  // DUITKU STATE
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+
   const router = useRouter();
 
   // STATE BARU: Untuk mengontrol tampilan Cart di Mobile
@@ -273,10 +278,40 @@ export default function POSPage() {
   };
 
   // --- LOGIC PEMBAYARAN ---
+  // --- LOGIC PEMBAYARAN ONLINE (DUITKU) ---
   const processOnlinePayment = async () => {
     if (cart.length === 0) return alert("Keranjang kosong!");
     setIsProcessingPayment(true);
-    setConfirmModal({ open: false, type: null }); // Close modal
+    setConfirmModal({ open: false, type: null }); // Close confirm modal
+
+    // 1. Fetch Payment Methods
+    try {
+      const res = await fetch('/api/payment/methods', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: finalTotal })
+      });
+      const data = await res.json();
+
+      if (data.methods) {
+        setPaymentMethods(data.methods);
+        setShowPaymentModal(true); // Show selection modal
+        setIsProcessingPayment(false); // Stop loading locally, wait for selection
+      } else {
+        alert("Gagal memuat metode pembayaran");
+        setIsProcessingPayment(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Gagal memuat metode pembayaran");
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // 2. Proceed with Duitku Payment
+  const handleDuitkuPayment = async (selectedMethod: string) => {
+    setShowPaymentModal(false);
+    setIsProcessingPayment(true);
 
     try {
       const orderPayload = {
@@ -291,64 +326,28 @@ export default function POSPage() {
         })),
         voucherId: appliedVoucher?.id || null,
         subtotal: grandTotal,
-        discountAmount: voucherDiscount
+        discountAmount: voucherDiscount,
+        paymentMethod: selectedMethod // Duitku param
       };
 
-      // 2. Request Snap token from your API
+      // Request Payment URL
       const res = await fetch('/api/tokenizer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || `Failed to get Snap Token: ${res.status}`);
+        throw new Error(data.details || "Gagal memproses pembayaran");
       }
 
-      const data = await res.json();
-      const transactionToken = data.token;
-
-      // 3. Open Midtrans Snap pop-up
-      if (window.snap) {
-        window.snap.pay(transactionToken, {
-          onSuccess: async function (result: any) {
-            // FLOW BARU: In-Page Success Modal (Auto Print Invisible)
-            // Kita construct object successModal dari data lokal + result.order_id
-            // karena di database order sudah dibuat via API tokenizer
-            const orderForReceipt = {
-              id: result.order_id,
-              customerName: orderPayload.customerName,
-              items: orderPayload.items, // Gunakan items dari payload yang sudah diformat
-              totalAmount: finalTotal,
-              createdAt: new Date().toISOString(),
-              paymentType: 'QRIS',
-              discountAmount: voucherDiscount
-            };
-
-            setSuccessModal(orderForReceipt);
-
-            setCart([]); // Clear cart after successful payment
-            setCustomerPosName(''); // Clear customer name
-            setIsProcessingPayment(false);
-          },
-          onPending: function (result: any) {
-            alert("Payment Pending! " + result.transaction_id);
-            setIsProcessingPayment(false);
-          },
-          onError: function (result: any) {
-            alert("Payment Error! " + result.transaction_id);
-            setIsProcessingPayment(false);
-          },
-          onClose: function () {
-            alert('You closed the popup without finishing the payment');
-            setIsProcessingPayment(false);
-          }
-        });
+      // Redirect to Duitku
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
       } else {
-        alert("Midtrans Snap is not loaded. Please try again.");
+        alert("Gagal mendapatkan URL pembayaran");
         setIsProcessingPayment(false);
       }
     } catch (err: any) {
@@ -448,11 +447,6 @@ export default function POSPage() {
 
   return (
     <>
-      <Script
-        src="https://app.sandbox.midtrans.com/snap/snap.js"
-        data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
-        strategy="lazyOnload"
-      />
 
       {/* LAYOUT UTAMA: Optimized Floating */}
       <div className="flex h-[100dvh] bg-gradient-to-br from-[#FFF8E7] via-[#FFF5DC] to-[#F5F0E8] font-sans text-black overflow-hidden flex-col lg:flex-row relative p-2 lg:p-3 gap-3">

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     // 1. Validate Employee & Device Binding
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      include: { branch: true } // Fetch Branch Info
+      include: { branch: true, faceEmbeddings: true } // Fetch Face Embeddings
     });
 
     if (!employee) {
@@ -26,17 +26,64 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Employee account is inactive' }, { status: 403 });
     }
 
-    // Device Fingerprint Logic (MODIFIED: Warning instead of blocking)
+    // --- FACE VERIFICATION LOGIC ---
+    const { faceEmbedding } = body; // Array of numbers
+    let faceScore = 0;
+
+    // Require Face Embedding for security
+    if (!faceEmbedding || !Array.isArray(faceEmbedding)) {
+      return NextResponse.json({ error: 'Data wajah tidak valid. Harap update aplikasi.' }, { status: 400 });
+    }
+
+    const storedFaces = employee.faceEmbeddings;
+    if (!storedFaces || storedFaces.length === 0) {
+      return NextResponse.json({ error: 'Wajah Anda belum terdaftar di sistem. Hubungi Admin.' }, { status: 403 });
+    }
+
+    // Calculate Similarity
+    // Helper function for Cosine Similarity
+    const cosineSimilarity = (a: number[], b: number[]) => {
+      let dotProduct = 0;
+      let mA = 0;
+      let mB = 0;
+      for (let i = 0; i < a.length; i++) {
+        dotProduct += a[i] * b[i];
+        mA += a[i] * a[i];
+        mB += b[i] * b[i];
+      }
+      mA = Math.sqrt(mA);
+      mB = Math.sqrt(mB);
+      return (mA === 0 || mB === 0) ? 0 : dotProduct / (mA * mB);
+    };
+
+    let maxScore = -1;
+    const inputVector = faceEmbedding;
+
+    for (const face of storedFaces) {
+      const storedVector = face.embedding as number[];
+      const score = cosineSimilarity(inputVector, storedVector);
+      if (score > maxScore) maxScore = score;
+    }
+
+    faceScore = maxScore;
+    console.log(`[Attendance] ${employee.name} Face Match Score: ${maxScore.toFixed(4)}`);
+
+    const THRESHOLD = 0.80; // Slightly lower strictness for field conditions
+    if (faceScore < THRESHOLD) {
+      return NextResponse.json({
+        error: 'Wajah tidak dikenali. Pastikan wajah terlihat jelas dan pencahayaan cukup.'
+      }, { status: 401 });
+    }
+
+    // Device Fingerprint (Secondary Check - Log Only)
     let deviceWarning = null;
     if (!employee.deviceId) {
-      // First time login - Bind device
       await prisma.employee.update({
         where: { id: employee.id },
         data: { deviceId: deviceId }
       });
     } else if (employee.deviceId !== deviceId) {
-      // Mismatch - ALLOW but warn
-      deviceWarning = 'Anda masuk dari device lain. Hubungi admin jika ini bukan Anda.';
+      deviceWarning = 'Device mismatch (Logged). Face verified.';
     }
 
     // 2. Validate Location (BRANCH BASED)
@@ -99,7 +146,8 @@ export async function POST(request: Request) {
         latitude,
         longitude,
         deviceId,
-        status: 'APPROVED' // Auto-approve for now
+        status: 'APPROVED',
+        notes: `Face Confidence: ${(faceScore * 100).toFixed(2)}%`
       }
     });
 

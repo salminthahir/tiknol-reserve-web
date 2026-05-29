@@ -175,6 +175,10 @@ function MenuContent() {
           <span className="hidden md:inline font-light text-lg tracking-wider uppercase text-neutral-400 group-hover:text-white transition-colors duration-500">Reserve</span>
         </Link>
 
+        <Link href="/shop" className="text-xs font-bold uppercase tracking-widest text-[#FBC02D] hover:text-white transition-colors ml-4 hidden lg:inline">
+          SHOP MERCH
+        </Link>
+
         {/* Branch Selector */}
         <BranchSelector
           currentBranchId={selectedBranch?.id || null}

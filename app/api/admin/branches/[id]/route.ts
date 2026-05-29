@@ -5,13 +5,14 @@ import { cookies } from "next/headers";
 export const runtime = 'nodejs';
 
 // PUT: Update branch
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+// PUT: Update branch
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const cookieStore = await cookies();
         const superAdminSession = cookieStore.get('super_admin_session');
         if (!superAdminSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
 
         const updatedBranch = await prisma.branch.update({
@@ -37,13 +38,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE: Delete branch (Soft delete / Hard delete check constraints)
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const cookieStore = await cookies();
         const superAdminSession = cookieStore.get('super_admin_session');
         if (!superAdminSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { id } = params;
+        const { id } = await params;
 
         // Check orders constraint?
         // Prisma will throw error if foreign keys exist and on delete RESTRICT.

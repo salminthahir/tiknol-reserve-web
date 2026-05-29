@@ -5,11 +5,12 @@ import { prisma } from '@/lib/prisma';
 // GET - Get single voucher
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const voucher = await prisma.voucher.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 _count: {
                     select: { orders: true }
@@ -37,13 +38,14 @@ export async function GET(
 // PUT - Update voucher
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const data = await req.json();
 
         const voucher = await prisma.voucher.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 code: data.code ? data.code.toUpperCase() : undefined,
                 name: data.name,
@@ -75,12 +77,13 @@ export async function PUT(
 // DELETE - Delete voucher
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         // Check if voucher has been used
         const voucher = await prisma.voucher.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 _count: {
                     select: { orders: true }
@@ -98,7 +101,7 @@ export async function DELETE(
         // If voucher has been used, deactivate instead of delete
         if (voucher._count.orders > 0) {
             const updated = await prisma.voucher.update({
-                where: { id: params.id },
+                where: { id },
                 data: { active: false }
             });
 
@@ -110,7 +113,7 @@ export async function DELETE(
 
         // If never used, safe to delete
         await prisma.voucher.delete({
-            where: { id: params.id }
+            where: { id }
         });
 
         return NextResponse.json({

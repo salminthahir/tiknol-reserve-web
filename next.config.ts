@@ -45,4 +45,24 @@ export default withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-})(nextConfig);
+})(
+  {
+    ...nextConfig,
+    webpack: (config, { isServer }) => {
+      config.externals.push({
+        canvas: 'commonjs canvas',
+      });
+
+      // Fix face-api.js & node-fetch missing module errors in browser
+      if (!isServer) {
+        config.resolve.fallback = {
+          ...config.resolve.fallback,
+          fs: false,
+          encoding: false,
+        };
+      }
+
+      return config;
+    },
+  }
+);
