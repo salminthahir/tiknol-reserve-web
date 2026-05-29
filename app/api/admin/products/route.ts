@@ -164,13 +164,30 @@ export async function PUT(request: Request) {
     }
 
     // Standard product update (no branch context)
-    // Remove isAvailable from data because it no longer exists on Product model
-    const { isAvailable, ...productData } = data;
+    // Remove fields that are NOT direct Product model columns
+    const { isAvailable, productBranches, ...productData } = data;
 
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: productData,
     });
+
+    // If productBranches were sent, update them separately (delete old + create new)
+    if (Array.isArray(productBranches) && productBranches.length > 0) {
+      await (prisma as any).productBranch.deleteMany({
+        where: { productId: id }
+      });
+      await (prisma as any).productBranch.createMany({
+        data: productBranches.map((pb: any) => ({
+          productId: id,
+          branchId: pb.branchId,
+          isAvailable: pb.isAvailable ?? true,
+          branchPrice: pb.branchPrice ? Number(pb.branchPrice) : null,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     return NextResponse.json(updatedProduct);
   } catch (error) {
     console.error("Error updating product:", error);
